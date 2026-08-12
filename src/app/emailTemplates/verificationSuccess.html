@@ -1,0 +1,110 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Email Verified</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        background-color: #f5f7fa;
+        font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      }
+
+      .container {
+        max-width: 600px;
+        margin: 40px auto;
+        background: #ffffff;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05);
+        border: 1px solid #eaeaea;
+      }
+
+      .header {
+        background: #f85301;
+        color: white;
+        text-align: center;
+        padding: 30px 20px;
+      }
+
+      .header h1 {
+        margin: 0;
+        font-size: 26px;
+        font-weight: 700;
+      }
+
+      .body {
+        padding: 30px 25px;
+        color: #333333;
+        line-height: 1.6;
+        font-size: 15px;
+      }
+
+      .body h2 {
+        margin-top: 0;
+        font-size: 20px;
+        color: #f85301;
+      }
+
+      .button {
+        display: inline-block;
+        margin: 25px 0;
+        padding: 14px 28px;
+        background: #f85301;
+        color: #ffffff !important;
+        text-decoration: none;
+        font-weight: bold;
+        font-size: 15px;
+        border-radius: 8px;
+        box-shadow: 0 4px 10px rgba(22, 141, 225, 0.25);
+        transition: background 0.2s ease;
+      }
+
+      .button:hover {
+        background: #0e6fb5;
+      }
+
+      .footer {
+        text-align: center;
+        padding: 20px;
+        font-size: 12px;
+        color: #6c757d;
+        background: #fafafa;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <!-- Header -->
+      <div class="header">
+        <h1>Welcome to Site Source</h1>
+      </div>
+
+      <!-- Body -->
+      <div class="body">
+        <h2>Hey {{name}},</h2>
+        <p>
+          Your email has been successfully verified — you're officially part of <strong>Site Source<strong>!
+        </p>
+
+        <p style="margin-top: 20px">
+          Start by completing your profile to get personalized job matches and
+          better suggestions.
+        </p>
+
+        <p>
+          Cheers,<br />
+          The Site Source Team
+        </p>
+      </div>
+
+      <!-- Footer -->
+      <div class="footer">
+        <p>This is an automated message. Please do not reply.</p>
+        <p>&copy; {{year}} Site Source. All rights reserved.</p>
+      </div>
+    </div>
+  </body>
+</html>

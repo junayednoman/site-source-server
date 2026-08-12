@@ -1,0 +1,27 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: site source-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: site source
+    ports:
+      - "5432:5432"
+    networks:
+      - site source-network
+    volumes:
+      - site source-postgres-volume:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+networks:
+  site source-network:
+    name: site source-network
+    driver: bridge
+
+volumes:
+  site-source-postgres-volume:

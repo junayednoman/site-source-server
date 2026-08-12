@@ -1,0 +1,107 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model Auth {
+  id              String           @id @default(auto()) @map("_id") @db.ObjectId
+  email           String           @unique
+  password        String
+  role            UserRole
+  status          UserStatus @default(PENDING)
+  loginProvider   LoginProvider
+  fcmToken        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  otp             OTP?
+  profile         Profile?
+  workerProfile   WorkerProfile?
+  employerProfile EmployerProfile?
+}
+
+model OTP {
+  id                String     @id @default(auto()) @map("_id") @db.ObjectId
+  authId            String     @unique @db.ObjectId
+  otp               String
+  expires           DateTime
+  attempts          Int        @default(0)
+  isVerified        Boolean    @default(false)
+  createdAt         DateTime   @default(now())
+  purpose           OTPPurpose
+  resetTokenExpires DateTime?
+  resetTokenHash    String?
+  auth              Auth       @relation(fields: [authId], references: [id])
+
+  @@unique([authId, purpose])
+}
+
+model Profile {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  authId    String   @unique @db.ObjectId
+  name      String
+  image     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  auth      Auth     @relation(fields: [authId], references: [id])
+
+  @@map("profiles")
+}
+
+model WorkerProfile {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  authId       String   @unique @db.ObjectId
+  skills       String[]
+  certificates String[]
+  updatedAt    DateTime @updatedAt
+  auth         Auth     @relation(fields: [authId], references: [id])
+}
+
+model EmployerProfile {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  authId    String   @unique @db.ObjectId
+  updatedAt DateTime @updatedAt
+  auth      Auth     @relation(fields: [authId], references: [id])
+}
+
+model Legal {
+  id                        String   @id @default(auto()) @map("_id") @db.ObjectId
+  privacyPolicy             String
+  termsCondition            String
+  aboutUs                   String
+  updatedAt                 DateTime @updatedAt
+
+  @@map("legal")
+}
+
+enum UserRole {
+  ADMIN
+  WORKER
+  EMPLOYER
+}
+
+enum UserStatus {
+  PENDING
+  ACTIVE
+  BLOCKED
+  DELETED
+}
+
+enum LoginProvider {
+  FACEBOOK
+  GOOGLE
+  EMAIL
+}
+
+enum OTPPurpose {
+  VERIFY_ACCOUNT
+  RESET_PASSWORD
+}

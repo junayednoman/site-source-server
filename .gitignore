@@ -1,0 +1,13 @@
+node_modules
+.env
+dist
+/generated/prisma
+createModule.js
+/src/generated/prisma
+
+/src/generated/prisma
+postman
+
+/src/generated/prisma
+
+/generated/prisma
