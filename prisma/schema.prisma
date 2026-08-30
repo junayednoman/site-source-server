@@ -1,6 +1,5 @@
-// This is your Prisma schema file,
+// This is your Prisma schema file
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 // Get a free hosted Postgres database in seconds: `npx create-db`
 
 generator client {
@@ -13,19 +12,33 @@ datasource db {
 }
 
 model Auth {
-  id              String           @id @default(auto()) @map("_id") @db.ObjectId
-  email           String           @unique
-  password        String
-  role            UserRole
-  status          UserStatus @default(PENDING)
-  loginProvider   LoginProvider
-  fcmToken        String?
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  otp             OTP?
-  profile         Profile?
-  workerProfile   WorkerProfile?
-  employerProfile EmployerProfile?
+  id                String           @id @default(auto()) @map("_id") @db.ObjectId
+  email             String           @unique
+  password          String
+  role              UserRole
+  status            UserStatus       @default(PENDING)
+  loginProvider     LoginProvider
+  fcmToken          String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  otp               OTP?
+  profile           Profile?
+  workerProfile     WorkerProfile?
+  employerProfile   EmployerProfile?
+  jobApplications   JobApplication[]
+  jobOffers         JobOffer[]
+  timeSheets        TimeSheet[]
+  jobsCreated       Job[]            @relation("JobEmployer")
+  jobsWorkedOn      Job[]            @relation("JobWorker")
+  sentMessages      Message[]        @relation("MessageSender")
+  receivedMessages  Message[]        @relation("MessageReceiver")
+  disputes          Dispute[]
+  givenReviews      Review[]         @relation("ReviewGiver")
+  reviews           Review[]         @relation("ReviewReceiver")
+  notifications     Notification[]
+  bookmarkedJobs    JobBookmark[]
+  bookmarkedWorkers WorkerBookmark[] @relation("BookmarkedWorker")
+  workerBookmarks   WorkerBookmark[] @relation("WorkerBookmarker")
 }
 
 model OTP {
@@ -48,7 +61,7 @@ model Profile {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
   authId    String   @unique @db.ObjectId
   name      String
-  image     String
+  image     String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   auth      Auth     @relation(fields: [authId], references: [id])
@@ -57,29 +70,224 @@ model Profile {
 }
 
 model WorkerProfile {
-  id           String   @id @default(auto()) @map("_id") @db.ObjectId
-  authId       String   @unique @db.ObjectId
-  skills       String[]
+  id           String     @id @default(auto()) @map("_id") @db.ObjectId
+  authId       String     @unique @db.ObjectId
+  trades       JobTrade[]
+  experience   Int?
+  address      Location?
   certificates String[]
-  updatedAt    DateTime @updatedAt
-  auth         Auth     @relation(fields: [authId], references: [id])
+  updatedAt    DateTime   @updatedAt
+  auth         Auth       @relation(fields: [authId], references: [id])
+}
+
+type Location {
+  type        String  @default("Point")
+  coordinates Float[] // Format: [longitude, latitude]
 }
 
 model EmployerProfile {
+  id        String    @id @default(auto()) @map("_id") @db.ObjectId
+  authId    String    @unique @db.ObjectId
+  logo      String?
+  address   Location?
+  updatedAt DateTime  @updatedAt
+  auth      Auth      @relation(fields: [authId], references: [id])
+}
+
+model Job {
+  id              String           @id @default(auto()) @map("_id") @db.ObjectId
+  employerAuthId  String           @db.ObjectId
+  employerAuth    Auth             @relation(name: "JobEmployer", fields: [employerAuthId], references: [id])
+  workerAuthId    String           @db.ObjectId
+  workerAuth      Auth             @relation(name: "JobWorker", fields: [workerAuthId], references: [id])
+  title           String
+  trade           JobTrade
+  hourlyRate      Int
+  workersNeeded   Int
+  location        Location
+  status          JobStatus        @default(POSTED)
+  startDate       DateTime
+  endDate         DateTime
+  workingHours    WorkingHour[]
+  mustHave        JobMustHave[]
+  note            String
+  createdAt       DateTime         @default(now())
+  jobApplications JobApplication[]
+  jobOffer        JobOffer?
+  timeSheets      TimeSheet[]
+  conversations   Conversation[]
+  reviews         Review[]
+  jobBookmarks    JobBookmark[]
+}
+
+type WorkingHour {
+  day                String
+  startTime          String
+  endTime            String
+  isPayOnePointFiveX Boolean? @default(false)
+  isPayTwoX          Boolean? @default(false)
+}
+
+model TimeSheet {
+  id             String          @id @default(auto()) @map("_id") @db.ObjectId
+  jobId          String          @db.ObjectId
+  authId         String          @db.ObjectId
+  auth           Auth            @relation(fields: [authId], references: [id])
+  job            Job             @relation(fields: [jobId], references: [id])
+  week           Int
+  mondayHours    Int
+  tuesdayHours   Int
+  wednesdayHours Int
+  thursdayHours  Int
+  fridayHours    Int
+  status         TimeSheetStatus
+  createdAt      DateTime        @default(now())
+
+  @@unique([jobId, authId])
+}
+
+model JobApplication {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  authId    String   @unique @db.ObjectId
-  updatedAt DateTime @updatedAt
+  jobId     String   @db.ObjectId
+  authId    String   @db.ObjectId
   auth      Auth     @relation(fields: [authId], references: [id])
+  job       Job      @relation(fields: [jobId], references: [id])
+  appliedAt DateTime @default(now())
+
+  @@unique([jobId, authId])
+}
+
+model JobOffer {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  jobId     String   @unique @db.ObjectId
+  job       Job      @relation(fields: [jobId], references: [id])
+  appliedAt DateTime @default(now())
+  auth      Auth?    @relation(fields: [authId], references: [id])
+  authId    String?  @db.ObjectId
+}
+
+model Conversation {
+  id       String    @id @default(auto()) @map("_id") @db.ObjectId
+  jobId    String    @db.ObjectId
+  job      Job       @relation(fields: [jobId], references: [id])
+  messages Message[]
+}
+
+model Message {
+  id             String       @id @default(auto()) @map("_id") @db.ObjectId
+  conversationId String       @db.ObjectId
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  content        String?
+  image          String?
+  senderAuthId   String       @db.ObjectId
+  receiverAuthId String       @db.ObjectId
+  senderAuth     Auth         @relation(name: "MessageSender", fields: [senderAuthId], references: [id])
+  receiverAuth   Auth         @relation(name: "MessageReceiver", fields: [receiverAuthId], references: [id])
+  hasRead        Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+}
+
+model Dispute {
+  id                 String        @id @default(auto()) @map("_id") @db.ObjectId
+  raiserAuthId       String        @db.ObjectId
+  raiserAuth         Auth          @relation(fields: [raiserAuthId], references: [id])
+  employerReason     String?
+  workerReason       String?
+  employerAttachment String?
+  workerAttachment   String?
+  status             DisputeStatus @default(REVIEWING)
+  raisedAt           DateTime      @default(now())
+}
+
+model Review {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  jobId          String   @db.ObjectId
+  giverAuthId    String   @db.ObjectId
+  receiverAuthId String   @db.ObjectId
+  job            Job      @relation(fields: [jobId], references: [id])
+  giverAuth      Auth     @relation(name: "ReviewGiver", fields: [giverAuthId], references: [id])
+  receiverAuth   Auth     @relation(name: "ReviewReceiver", fields: [receiverAuthId], references: [id])
+  rating         Int
+  feedback       String?
+  givenAt        DateTime @default(now())
+}
+
+model JobBookmark {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  jobId     String   @db.ObjectId
+  authId    String   @db.ObjectId
+  auth      Auth     @relation(fields: [authId], references: [id])
+  job       Job      @relation(fields: [jobId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model WorkerBookmark {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  workerAuthId String   @db.ObjectId
+  workerAuth   Auth     @relation(name: "BookmarkedWorker", fields: [workerAuthId], references: [id])
+  authId       String   @db.ObjectId
+  auth         Auth     @relation(name: "WorkerBookmarker", fields: [authId], references: [id])
+  createdAt    DateTime @default(now())
 }
 
 model Legal {
-  id                        String   @id @default(auto()) @map("_id") @db.ObjectId
-  privacyPolicy             String
-  termsCondition            String
-  aboutUs                   String
-  updatedAt                 DateTime @updatedAt
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  privacyPolicy  String
+  termsCondition String
+  aboutUs        String
+  updatedAt      DateTime @updatedAt
 
   @@map("legal")
+}
+
+model Notification {
+  id      String   @id @default(auto()) @map("_id") @db.ObjectId
+  authId  String   @db.ObjectId
+  auth    Auth     @relation(fields: [authId], references: [id])
+  title   String
+  message String
+  seen    Boolean  @default(false)
+  sentAt  DateTime @default(now())
+}
+
+enum JobMustHave {
+  CSCS_CARDS
+  OWN_TOOLS
+  OWN_PPE
+}
+
+enum DisputeStatus {
+  REVIEWING
+  RESOLVED
+}
+
+enum TimeSheetStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum JobOfferStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+enum JobStatus {
+  POSTED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum JobTrade {
+  GROUND_WORKER
+  CARPENTER
+  ELECTRICIAN
+  PLUMBER
+  BRICKLAYER
+  PAINTER
+  SCAFFOLDER
 }
 
 enum UserRole {

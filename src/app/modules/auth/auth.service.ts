@@ -28,7 +28,7 @@ import {
 import generateOTP from "../../utils/generateOTP.js";
 import { TFile } from "../../interface/file.interface.js";
 
-const signUp = async (payload: TSignup, file: TFile) => {
+const signUp = async (payload: TSignup, file?: TFile) => {
   const existingUser = await prisma.auth.findUnique({
     where: {
       email: payload.email,
@@ -48,7 +48,7 @@ const signUp = async (payload: TSignup, file: TFile) => {
 
   const otp = generateOTP();
 
-  const imageUrl = await uploadToS3(file);
+  const imageUrl = file ? await uploadToS3(file) : undefined;
 
   try {
     const result = await prisma.$transaction(async tn => {
@@ -67,40 +67,58 @@ const signUp = async (payload: TSignup, file: TFile) => {
         create: {
           authId: result.id,
           name: payload.name,
-          image: imageUrl,
+          ...(imageUrl ? { image: imageUrl } : {}),
         },
         update: {
           name: payload.name,
-          image: imageUrl,
+          ...(imageUrl ? { image: imageUrl } : {}),
         },
       });
 
       if (payload.role === UserRole.WORKER) {
+        const workerProfileUpdateData = {
+          ...(payload.trades ? { trades: payload.trades } : {}),
+          ...(payload.experience !== undefined
+            ? { experience: payload.experience }
+            : {}),
+          ...(payload.address ? { address: payload.address } : {}),
+          ...(payload.certificates
+            ? { certificates: payload.certificates }
+            : {}),
+        };
+
         await tn.workerProfile.upsert({
           where: {
             authId: result.id,
           },
           create: {
             authId: result.id,
-            skills: payload.skills,
-            certificates: payload.certificates,
+            trades: payload.trades || [],
+            ...(payload.experience !== undefined
+              ? { experience: payload.experience }
+              : {}),
+            ...(payload.address ? { address: payload.address } : {}),
+            certificates: payload.certificates || [],
           },
-          update: {
-            skills: payload.skills,
-            certificates: payload.certificates,
-          },
+          update: workerProfileUpdateData,
         });
       }
 
       if (payload.role === UserRole.EMPLOYER) {
+        const employerProfileData = {
+          ...(imageUrl ? { logo: imageUrl } : {}),
+          ...(payload.address ? { address: payload.address } : {}),
+        };
+
         await tn.employerProfile.upsert({
           where: {
             authId: result.id,
           },
           create: {
             authId: result.id,
+            ...employerProfileData,
           },
-          update: {},
+          update: employerProfileData,
         });
       }
 
@@ -135,9 +153,15 @@ const signUp = async (payload: TSignup, file: TFile) => {
       sendEmail(payload.email, subject, path, replacements);
     }
 
-    return result;
+    return {
+      id: result.id,
+      email: result.email,
+      role: result.role,
+      status: result.status,
+      createdAt: result.createdAt,
+    };
   } catch (error) {
-    await deleteFromS3(imageUrl);
+    if (imageUrl) await deleteFromS3(imageUrl);
     throw error;
   }
 };

@@ -11,3 +11,5 @@ postman
 /src/generated/prisma
 
 /generated/prisma
+
+.claude

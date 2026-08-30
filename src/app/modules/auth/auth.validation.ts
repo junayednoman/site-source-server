@@ -1,6 +1,6 @@
 import z from "zod";
 import { emailZod, passwordZod } from "../../validation/global.validation.js";
-import { UserStatus } from "@prisma/client";
+import { JobTrade, UserStatus } from "@prisma/client";
 
 const commonSignupFields = {
   email: emailZod,
@@ -8,18 +8,30 @@ const commonSignupFields = {
   name: z.string().min(1, "Name is required").trim(),
 };
 
+const locationZod = z.object({
+  type: z.string().default("Point"),
+  coordinates: z
+    .array(z.number())
+    .length(2, "Coordinates must contain longitude and latitude"),
+});
+
 const workerSignupZod = z.object({
   ...commonSignupFields,
   role: z.literal("WORKER"),
-  skills: z.array(z.string().min(1)).nonempty("Skills are required"),
-  certificates: z
-    .array(z.string().min(1))
-    .nonempty("Certificates are required"),
+  trades: z.array(z.nativeEnum(JobTrade)).optional(),
+  experience: z.coerce
+    .number()
+    .int()
+    .min(0, "Experience cannot be negative")
+    .optional(),
+  address: locationZod.optional(),
+  certificates: z.array(z.string()).optional(),
 });
 
 const employerSignupZod = z.object({
   ...commonSignupFields,
   role: z.literal("EMPLOYER"),
+  address: locationZod.optional(),
 });
 
 export const signupZod = z.discriminatedUnion("role", [
