@@ -34,6 +34,12 @@ const updateProfile = async (
     },
   });
 
+  const workerProfile = await prisma.workerProfile.findUniqueOrThrow({
+    where: {
+      authId,
+    },
+  });
+
   const profileData: Prisma.ProfileUpdateInput = {};
   if (payload.name) {
     profileData.name = payload.name;
@@ -51,7 +57,11 @@ const updateProfile = async (
     workerProfileData.experience = payload.experience;
   }
   if (payload.address) {
-    workerProfileData.address = payload.address;
+    workerProfileData.address = {
+      type: payload.address.type || workerProfile.address?.type || "Point",
+      coordinates:
+        payload.address.coordinates || workerProfile.address?.coordinates || [],
+    };
   }
   if (payload.certificates) {
     workerProfileData.certificates = payload.certificates;
