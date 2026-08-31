@@ -18,7 +18,6 @@ export const updateWorkerProfileZod = z.object({
     .min(0, "Experience cannot be negative")
     .optional(),
   address: locationZod.optional(),
-  certificates: z.array(z.string().min(1)).optional(),
 });
 
 export type TUpdateWorkerProfile = z.infer<typeof updateWorkerProfileZod>;

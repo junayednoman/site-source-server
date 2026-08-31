@@ -110,14 +110,13 @@ model Job {
   workingHours    WorkingHour[]
   mustHave        JobMustHave[]
   note            String
-  createdAt       DateTime         @default(now())
   jobApplications JobApplication[]
   jobOffer        JobOffer?
   timeSheets      TimeSheet[]
   conversations   Conversation[]
   reviews         Review[]
   jobBookmarks    JobBookmark[]
-  postedAt        DateTime         @default(now())
+  createdAt       DateTime         @default(now())
 }
 
 type WorkingHour {

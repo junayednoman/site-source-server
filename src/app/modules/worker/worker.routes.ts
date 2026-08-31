@@ -12,7 +12,7 @@ router.get("/profile", authorize(UserRole.WORKER), workerController.getProfile);
 router.patch(
   "/profile",
   authorize(UserRole.WORKER),
-  upload.single("image"),
+  upload.fields([{ name: "image", maxCount: 1 }, { name: "certificates" }]),
   validate(updateWorkerProfileZod, { formData: true }),
   workerController.updateProfile
 );

@@ -26,7 +26,8 @@ const getProfile = async (authId: string) => {
 const updateProfile = async (
   authId: string,
   payload: TUpdateWorkerProfile,
-  file?: TFile
+  file?: TFile,
+  certificateFiles: TFile[] = []
 ) => {
   const profile = await prisma.profile.findUniqueOrThrow({
     where: {
@@ -63,8 +64,18 @@ const updateProfile = async (
         payload.address.coordinates || workerProfile.address?.coordinates || [],
     };
   }
-  if (payload.certificates) {
-    workerProfileData.certificates = payload.certificates;
+
+  if (certificateFiles.length) {
+    const certificates = [];
+    for (const certificateFile of certificateFiles) {
+      const certificate = await uploadToS3(certificateFile);
+      certificates.push(certificate);
+    }
+
+    workerProfileData.certificates = [
+      ...workerProfile.certificates,
+      ...certificates,
+    ];
   }
 
   const result = await prisma.$transaction(async tn => {

@@ -279,7 +279,7 @@ const getAllForWorker = async (
       workersNeeded: true,
       startDate: true,
       endDate: true,
-      postedAt: true,
+      createdAt: true,
       employerAuthId: true,
       employerAuth: {
         select: {
@@ -301,7 +301,7 @@ const getAllForWorker = async (
       },
     },
     orderBy: {
-      postedAt: "desc",
+      createdAt: "desc",
     },
   });
 
@@ -368,7 +368,7 @@ const getAllForWorker = async (
       workersNeeded: job.workersNeeded,
       startDate: job.startDate,
       endDate: job.endDate,
-      postedAt: job.postedAt,
+      createdAt: job.createdAt,
       hasBookmarked: job.jobBookmarks.length > 0,
     };
   });
