@@ -205,9 +205,7 @@ const login = async (payload: TLoginInput) => {
     jwtPayload,
     config.jwt.accessSecret as Secret,
     {
-      expiresIn: payload.isMobileApp
-        ? config.jwt.refreshExpiration
-        : (config.jwt.accessExpiration as any),
+      expiresIn: config.jwt.accessExpiration as any,
     }
   );
 

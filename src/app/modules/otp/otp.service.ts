@@ -6,6 +6,8 @@ import ApiError from "../../classes/ApiError.js";
 import bcrypt from "bcrypt";
 import { TVerifyOtpInput } from "./otp.validation.js";
 import crypto from "crypto";
+import jsonwebtoken, { Secret } from "jsonwebtoken";
+import config from "../../config/index.js";
 
 const sendOtp = async (email: string, purposeInput?: string) => {
   const purpose =
@@ -128,7 +130,22 @@ const verifyOtp = async (payload: TVerifyOtpInput) => {
         sendEmail(updatedAuth.email, subject, path, { name });
       }
 
-      return null;
+      // prepare tokens
+      const jwtPayload = {
+        email: auth.email,
+        role: auth.role,
+        id: auth.id,
+      };
+
+      const accessToken = jsonwebtoken.sign(
+        jwtPayload,
+        config.jwt.accessSecret as Secret,
+        {
+          expiresIn: config.jwt.accessExpiration as any,
+        }
+      );
+
+      return { accessToken };
     } else {
       const token = crypto.randomBytes(32).toString("hex");
       const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
