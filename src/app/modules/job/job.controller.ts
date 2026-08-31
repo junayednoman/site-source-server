@@ -53,9 +53,68 @@ const getSingle = handleAsyncRequest(async (req: TRequest, res: Response) => {
   });
 });
 
+const apply = handleAsyncRequest(async (req: TRequest, res: Response) => {
+  const result = await jobServices.apply(
+    req.user?.id as string,
+    req.params.id as string
+  );
+  sendResponse(res, {
+    status: 201,
+    message: "Job applied successfully!",
+    data: result,
+  });
+});
+
+const getMyAppliedJobs = handleAsyncRequest(
+  async (req: TRequest, res: Response) => {
+    const options = pick(req.query, ["page", "limit", "sortBy", "orderBy"]);
+    const result = await jobServices.getMyAppliedJobs(
+      req.user?.id as string,
+      options
+    );
+    sendResponse(res, {
+      message: "Applied jobs fetched successfully!",
+      data: result,
+    });
+  }
+);
+
+const getApplicationsByJob = handleAsyncRequest(
+  async (req: TRequest, res: Response) => {
+    const options = pick(req.query, ["page", "limit", "sortBy", "orderBy"]);
+    const result = await jobServices.getApplicationsByJob(
+      req.user?.id as string,
+      req.params.id as string,
+      options
+    );
+    sendResponse(res, {
+      message: "Applications fetched successfully!",
+      data: result,
+    });
+  }
+);
+
+const changeApplicationStatus = handleAsyncRequest(
+  async (req: TRequest, res: Response) => {
+    const result = await jobServices.changeApplicationStatus(
+      req.user?.id as string,
+      req.params.id as string,
+      req.body.status
+    );
+    sendResponse(res, {
+      message: "Application status changed successfully!",
+      data: result,
+    });
+  }
+);
+
 export const jobController = {
   create,
   getMyJobs,
   getAllForWorker,
   getSingle,
+  apply,
+  getMyAppliedJobs,
+  getApplicationsByJob,
+  changeApplicationStatus,
 };

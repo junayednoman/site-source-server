@@ -1,4 +1,5 @@
-import { JobStatus, JobTrade, Prisma } from "@prisma/client";
+import { ApplicationStatus, JobStatus, JobTrade, Prisma } from "@prisma/client";
+import ApiError from "../../classes/ApiError.js";
 import prisma from "../../utils/prisma.js";
 import {
   calculatePagination,
@@ -210,6 +211,10 @@ const getAllForWorker = async (
   const radius = getNumberQuery(query.radius);
   const trades = getTradeQuery(query.trade);
   const andConditions: Prisma.JobWhereInput[] = [];
+
+  andConditions.push({
+    status: JobStatus.POSTED,
+  });
 
   if (searchTerm) {
     andConditions.push({
@@ -435,9 +440,207 @@ const getSingle = async (employerAuthId: string, jobId: string) => {
   return job;
 };
 
+const apply = async (workerAuthId: string, jobId: string) => {
+  const job = await prisma.job.findUniqueOrThrow({
+    where: {
+      id: jobId,
+    },
+  });
+
+  if (job.startDate < new Date()) {
+    throw new ApiError(400, "Cannot apply to a job that has already started!");
+  }
+
+  const existingApplication = await prisma.jobApplication.findUnique({
+    where: {
+      jobId_authId: {
+        jobId,
+        authId: workerAuthId,
+      },
+    },
+  });
+
+  if (existingApplication) {
+    throw new ApiError(400, "You have already applied to this job!");
+  }
+
+  const result = await prisma.jobApplication.create({
+    data: {
+      jobId,
+      authId: workerAuthId,
+    },
+  });
+
+  return result;
+};
+
+const getMyAppliedJobs = async (
+  workerAuthId: string,
+  options: TPaginationOptions
+) => {
+  const { page, take, skip, sortBy, orderBy } = calculatePagination(options);
+
+  const applications = await prisma.jobApplication.findMany({
+    where: {
+      authId: workerAuthId,
+    },
+    include: {
+      job: {
+        include: {
+          employerAuth: {
+            select: {
+              id: true,
+              email: true,
+              profile: true,
+              employerProfile: true,
+            },
+          },
+        },
+      },
+    },
+    skip,
+    take,
+    orderBy: sortBy && orderBy ? { [sortBy]: orderBy } : { appliedAt: "desc" },
+  });
+
+  const total = await prisma.jobApplication.count({
+    where: {
+      authId: workerAuthId,
+    },
+  });
+
+  const meta = {
+    page,
+    limit: take,
+    total,
+  };
+
+  return { meta, applications };
+};
+
+const getApplicationsByJob = async (
+  employerAuthId: string,
+  jobId: string,
+  options: TPaginationOptions
+) => {
+  await prisma.job.findFirstOrThrow({
+    where: {
+      id: jobId,
+      employerAuthId,
+    },
+  });
+
+  const { page, take, skip, sortBy, orderBy } = calculatePagination(options);
+
+  const applications = await prisma.jobApplication.findMany({
+    where: {
+      jobId,
+    },
+    include: {
+      auth: {
+        select: {
+          id: true,
+          email: true,
+          profile: true,
+          workerProfile: true,
+        },
+      },
+    },
+    skip,
+    take,
+    orderBy: sortBy && orderBy ? { [sortBy]: orderBy } : { appliedAt: "desc" },
+  });
+
+  const total = await prisma.jobApplication.count({
+    where: {
+      jobId,
+    },
+  });
+
+  const meta = {
+    page,
+    limit: take,
+    total,
+  };
+
+  return { meta, applications };
+};
+
+const changeApplicationStatus = async (
+  employerAuthId: string,
+  applicationId: string,
+  status: ApplicationStatus
+) => {
+  const application = await prisma.jobApplication.findFirstOrThrow({
+    where: {
+      id: applicationId,
+      job: {
+        employerAuthId,
+      },
+    },
+    include: {
+      job: true,
+    },
+  });
+
+  if (status === ApplicationStatus.REJECTED) {
+    const result = await prisma.jobApplication.update({
+      where: {
+        id: applicationId,
+      },
+      data: {
+        status,
+      },
+    });
+
+    return result;
+  }
+
+  const result = await prisma.$transaction(async tn => {
+    const acceptedApplication = await tn.jobApplication.update({
+      where: {
+        id: applicationId,
+      },
+      data: {
+        status: ApplicationStatus.ACCEPTED,
+      },
+    });
+
+    await tn.jobApplication.updateMany({
+      where: {
+        jobId: application.jobId,
+        id: {
+          not: applicationId,
+        },
+      },
+      data: {
+        status: ApplicationStatus.REJECTED,
+      },
+    });
+
+    await tn.job.update({
+      where: {
+        id: application.jobId,
+      },
+      data: {
+        status: JobStatus.ACTIVE,
+        workerAuthId: application.authId,
+      },
+    });
+
+    return acceptedApplication;
+  });
+
+  return result;
+};
+
 export const jobServices = {
   create,
   getMyJobs,
   getAllForWorker,
   getSingle,
+  apply,
+  getMyAppliedJobs,
+  getApplicationsByJob,
+  changeApplicationStatus,
 };

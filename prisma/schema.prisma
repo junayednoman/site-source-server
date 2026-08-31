@@ -146,12 +146,13 @@ model TimeSheet {
 }
 
 model JobApplication {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  jobId     String   @db.ObjectId
-  authId    String   @db.ObjectId
-  auth      Auth     @relation(fields: [authId], references: [id])
-  job       Job      @relation(fields: [jobId], references: [id])
-  appliedAt DateTime @default(now())
+  id        String            @id @default(auto()) @map("_id") @db.ObjectId
+  jobId     String            @db.ObjectId
+  authId    String            @db.ObjectId
+  auth      Auth              @relation(fields: [authId], references: [id])
+  job       Job               @relation(fields: [jobId], references: [id])
+  appliedAt DateTime          @default(now())
+  status    ApplicationStatus @default(PENDING)
 
   @@unique([jobId, authId])
 }
@@ -247,6 +248,12 @@ model Notification {
   message String
   seen    Boolean  @default(false)
   sentAt  DateTime @default(now())
+}
+
+enum ApplicationStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
 }
 
 enum JobMustHave {
