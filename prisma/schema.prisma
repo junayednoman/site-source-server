@@ -88,7 +88,6 @@ type Location {
 model EmployerProfile {
   id        String    @id @default(auto()) @map("_id") @db.ObjectId
   authId    String    @unique @db.ObjectId
-  logo      String?
   address   Location?
   updatedAt DateTime  @updatedAt
   auth      Auth      @relation(fields: [authId], references: [id])
@@ -98,10 +97,10 @@ model Job {
   id              String           @id @default(auto()) @map("_id") @db.ObjectId
   employerAuthId  String           @db.ObjectId
   employerAuth    Auth             @relation(name: "JobEmployer", fields: [employerAuthId], references: [id])
-  workerAuthId    String           @db.ObjectId
-  workerAuth      Auth             @relation(name: "JobWorker", fields: [workerAuthId], references: [id])
+  workerAuthId    String?          @db.ObjectId
+  workerAuth      Auth?            @relation(name: "JobWorker", fields: [workerAuthId], references: [id])
   title           String
-  trade           JobTrade
+  trades          JobTrade[]
   hourlyRate      Int
   workersNeeded   Int
   location        Location
@@ -118,6 +117,7 @@ model Job {
   conversations   Conversation[]
   reviews         Review[]
   jobBookmarks    JobBookmark[]
+  postedAt        DateTime         @default(now())
 }
 
 type WorkingHour {

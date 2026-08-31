@@ -106,7 +106,6 @@ const signUp = async (payload: TSignup, file?: TFile) => {
 
       if (payload.role === UserRole.EMPLOYER) {
         const employerProfileData = {
-          ...(imageUrl ? { logo: imageUrl } : {}),
           ...(payload.address ? { address: payload.address } : {}),
         };
 
@@ -148,6 +147,7 @@ const signUp = async (payload: TSignup, file?: TFile) => {
       const subject = "Complete your signup – verify your email";
       const replacements = {
         otp,
+        name: payload.name,
       };
       const path = "./src/app/emailTemplates/welcome.html";
       sendEmail(payload.email, subject, path, replacements);

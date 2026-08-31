@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Password Reset OTP</title>
+    <title>Welcome to Site Source</title>
     <style>
       body {
         margin: 0;
@@ -69,40 +69,48 @@
       }
     </style>
   </head>
+
   <body>
     <div class="container">
       <!-- Header -->
       <div class="header">
-        <h1>Reset Your Password</h1>
+        <h1>Welcome to Site Source!</h1>
       </div>
 
       <!-- Body -->
       <div class="body">
-        <h2>Hello {{name}},</h2>
+        <h2>Hi {{name}},</h2>
 
         <p>
-          We received a request to reset the password for your
-          <strong>Site Source</strong> account.
+          Welcome to Site Source! 🎉 We're happy to have you here.
         </p>
 
-        <p>Please use the OTP below to continue:</p>
+        <p>
+          Your account has been created successfully. To get started,
+          please verify your email address using the OTP below.
+        </p>
 
+        <!-- OTP Code -->
         <div class="code-box">{{otp}}</div>
 
         <p>
-          This OTP will expire in <strong>2 minutes</strong>. If you didn’t
-          request this, you can safely ignore this email.
+          This OTP will expire in <strong>2 minutes</strong>.
+          Please don't share this code with anyone.
+        </p>
+
+        <p>
+          If you didn't create this account, you can safely ignore this email.
         </p>
 
         <p style="margin-top: 25px">
-          Stay secure.<br />
-          — Team Site Source
+          Welcome aboard!<br />
+          <strong>The Site Source Team</strong>
         </p>
       </div>
 
       <!-- Footer -->
       <div class="footer">
-        <p>This is an automated message. Please do not reply.</p>
+        <p>This is an automated message, please don't reply.</p>
         <p>&copy; {{year}} Site Source. All rights reserved.</p>
       </div>
     </div>

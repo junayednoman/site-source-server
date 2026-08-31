@@ -16,7 +16,7 @@ router.get(
 router.patch(
   "/profile",
   authorize(UserRole.EMPLOYER),
-  upload.single("logo"),
+  upload.single("image"),
   validate(updateEmployerProfileZod, { formData: true }),
   employerController.updateProfile
 );

@@ -34,12 +34,6 @@ const updateProfile = async (
     },
   });
 
-  const employerProfile = await prisma.employerProfile.findUniqueOrThrow({
-    where: {
-      authId,
-    },
-  });
-
   const profileData: Prisma.ProfileUpdateInput = {};
   if (payload.name) {
     profileData.name = payload.name;
@@ -53,7 +47,6 @@ const updateProfile = async (
   if (file) {
     const image = await uploadToS3(file);
     profileData.image = image;
-    employerProfileData.logo = image;
   }
 
   const result = await prisma.$transaction(async tn => {
@@ -93,10 +86,6 @@ const updateProfile = async (
 
   if (result && profileData.image && profile.image) {
     await deleteFromS3(profile.image);
-  }
-
-  if (result && employerProfileData.logo && employerProfile.logo) {
-    await deleteFromS3(employerProfile.logo);
   }
 
   return result;
