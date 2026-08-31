@@ -12,6 +12,14 @@ const getProfile = handleAsyncRequest(async (req: TRequest, res: Response) => {
   });
 });
 
+const getDetails = handleAsyncRequest(async (req: TRequest, res: Response) => {
+  const result = await employerServices.getDetails(req.user?.id as string);
+  sendResponse(res, {
+    message: "Details fetched successfully!",
+    data: result,
+  });
+});
+
 const updateProfile = handleAsyncRequest(
   async (req: TRequest, res: Response) => {
     const result = await employerServices.updateProfile(
@@ -28,5 +36,6 @@ const updateProfile = handleAsyncRequest(
 
 export const employerController = {
   getProfile,
+  getDetails,
   updateProfile,
 };

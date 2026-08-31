@@ -60,6 +60,7 @@ const sendOtp = async (email: string, purposeInput?: string) => {
 };
 
 const verifyOtp = async (payload: TVerifyOtpInput) => {
+  console.log("payload", payload);
   const purpose = payload.purpose;
 
   const auth = await prisma.auth.findUniqueOrThrow({

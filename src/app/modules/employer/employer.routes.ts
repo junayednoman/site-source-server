@@ -13,6 +13,7 @@ router.get(
   authorize(UserRole.EMPLOYER),
   employerController.getProfile
 );
+router.get("/details", authorize(), employerController.getDetails);
 router.patch(
   "/profile",
   authorize(UserRole.EMPLOYER),

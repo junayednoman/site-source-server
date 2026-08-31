@@ -13,6 +13,14 @@ const getProfile = handleAsyncRequest(async (req: TRequest, res: Response) => {
   });
 });
 
+const getDetails = handleAsyncRequest(async (req: TRequest, res: Response) => {
+  const result = await workerServices.getDetails(req.user?.id as string);
+  sendResponse(res, {
+    message: "Details fetched successfully!",
+    data: result,
+  });
+});
+
 const updateProfile = handleAsyncRequest(
   async (req: TRequest, res: Response) => {
     const files = req.files as Record<string, TFile[]> | undefined;
@@ -34,5 +42,6 @@ const updateProfile = handleAsyncRequest(
 
 export const workerController = {
   getProfile,
+  getDetails,
   updateProfile,
 };

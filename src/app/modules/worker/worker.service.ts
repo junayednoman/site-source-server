@@ -23,6 +23,26 @@ const getProfile = async (authId: string) => {
   return profile;
 };
 
+const getDetails = async (authId: string) => {
+  const details = await prisma.auth.findUniqueOrThrow({
+    where: {
+      id: authId,
+    },
+    select: {
+      id: true,
+      email: true,
+      role: true,
+      status: true,
+      createdAt: true,
+      updatedAt: true,
+      profile: true,
+      workerProfile: true,
+    },
+  });
+
+  return details;
+};
+
 const updateProfile = async (
   authId: string,
   payload: TUpdateWorkerProfile,
@@ -122,5 +142,6 @@ const updateProfile = async (
 
 export const workerServices = {
   getProfile,
+  getDetails,
   updateProfile,
 };
