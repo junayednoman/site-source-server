@@ -1,4 +1,5 @@
 import { Response } from "express";
+import { UserRole } from "@prisma/client";
 import { TRequest } from "../../interface/global.interface.js";
 import handleAsyncRequest from "../../utils/handleAsyncRequest.js";
 import pick from "../../utils/pick.js";
@@ -171,6 +172,49 @@ const changeJobOfferStatus = handleAsyncRequest(
   }
 );
 
+const createTimeSheet = handleAsyncRequest(
+  async (req: TRequest, res: Response) => {
+    const result = await jobServices.createTimeSheet(
+      req.user?.id as string,
+      req.params.id as string,
+      req.body
+    );
+    sendResponse(res, {
+      status: 201,
+      message: "TimeSheet created successfully!",
+      data: result,
+    });
+  }
+);
+
+const getTimeSheetByJob = handleAsyncRequest(
+  async (req: TRequest, res: Response) => {
+    const result = await jobServices.getTimeSheetByJob(
+      req.user?.id as string,
+      req.user?.role as UserRole,
+      req.params.id as string
+    );
+    sendResponse(res, {
+      message: "TimeSheet fetched successfully!",
+      data: result,
+    });
+  }
+);
+
+const changeTimeSheetStatus = handleAsyncRequest(
+  async (req: TRequest, res: Response) => {
+    const result = await jobServices.changeTimeSheetStatus(
+      req.user?.id as string,
+      req.params.id as string,
+      req.body.status
+    );
+    sendResponse(res, {
+      message: "TimeSheet status changed successfully!",
+      data: result,
+    });
+  }
+);
+
 export const jobController = {
   create,
   getMyJobs,
@@ -185,4 +229,7 @@ export const jobController = {
   getReceivedOffers,
   getEmployerJobTitles,
   changeJobOfferStatus,
+  createTimeSheet,
+  getTimeSheetByJob,
+  changeTimeSheetStatus,
 };

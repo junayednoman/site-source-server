@@ -4,6 +4,7 @@ import {
   JobOfferStatus,
   JobTrade,
   Prisma,
+  TimeSheetStatus,
   UserRole,
 } from "@prisma/client";
 import ApiError from "../../classes/ApiError.js";
@@ -12,7 +13,11 @@ import {
   calculatePagination,
   TPaginationOptions,
 } from "../../utils/paginationCalculation.js";
-import { TCreateJob, TSendJobOffer } from "./job.validation.js";
+import {
+  TCreateJob,
+  TCreateTimeSheet,
+  TSendJobOffer,
+} from "./job.validation.js";
 
 const MILES_PER_KILOMETER = 0.621371;
 
@@ -846,6 +851,113 @@ const changeJobOfferStatus = async (
   return result;
 };
 
+const createTimeSheet = async (
+  workerAuthId: string,
+  jobId: string,
+  payload: TCreateTimeSheet
+) => {
+  await prisma.job.findFirstOrThrow({
+    where: {
+      id: jobId,
+      workerAuthId,
+    },
+  });
+
+  const existingTimeSheet = await prisma.timeSheet.findUnique({
+    where: {
+      jobId_workerAuthId: {
+        jobId,
+        workerAuthId,
+      },
+    },
+  });
+
+  if (existingTimeSheet) {
+    throw new ApiError(400, "TimeSheet already exists for this job!");
+  }
+
+  const result = await prisma.timeSheet.create({
+    data: {
+      jobId,
+      workerAuthId,
+      week: payload.week,
+      mondayHours: payload.mondayHours,
+      tuesdayHours: payload.tuesdayHours,
+      wednesdayHours: payload.wednesdayHours,
+      thursdayHours: payload.thursdayHours,
+      fridayHours: payload.fridayHours,
+      saturdayHours: payload.saturdayHours,
+      sundayHours: payload.sundayHours,
+      status: TimeSheetStatus.PENDING,
+    },
+  });
+
+  return result;
+};
+
+const getTimeSheetByJob = async (
+  authId: string,
+  role: UserRole,
+  jobId: string
+) => {
+  const whereConditions: Prisma.TimeSheetWhereInput = {
+    jobId,
+  };
+
+  if (role === UserRole.WORKER) {
+    whereConditions.workerAuthId = authId;
+  }
+
+  if (role === UserRole.EMPLOYER) {
+    whereConditions.job = {
+      employerAuthId: authId,
+    };
+  }
+
+  const timeSheet = await prisma.timeSheet.findFirstOrThrow({
+    where: whereConditions,
+    include: {
+      workerAuth: {
+        select: {
+          id: true,
+          email: true,
+          profile: true,
+          workerProfile: true,
+        },
+      },
+      job: true,
+    },
+  });
+
+  return timeSheet;
+};
+
+const changeTimeSheetStatus = async (
+  employerAuthId: string,
+  timeSheetId: string,
+  status: TimeSheetStatus
+) => {
+  const timeSheet = await prisma.timeSheet.findFirstOrThrow({
+    where: {
+      id: timeSheetId,
+      job: {
+        employerAuthId,
+      },
+    },
+  });
+
+  const result = await prisma.timeSheet.update({
+    where: {
+      id: timeSheet.id,
+    },
+    data: {
+      status,
+    },
+  });
+
+  return result;
+};
+
 export const jobServices = {
   create,
   getMyJobs,
@@ -860,4 +972,7 @@ export const jobServices = {
   getReceivedOffers,
   getEmployerJobTitles,
   changeJobOfferStatus,
+  createTimeSheet,
+  getTimeSheetByJob,
+  changeTimeSheetStatus,
 };

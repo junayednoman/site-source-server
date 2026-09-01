@@ -4,10 +4,12 @@ import authorize from "../../middlewares/authorize.js";
 import validate from "../../middlewares/validate.js";
 import { jobController } from "./job.controller.js";
 import {
+  createTimeSheetZod,
   createJobZod,
   sendJobOfferZod,
   updateApplicationStatusZod,
   updateJobOfferStatusZod,
+  updateTimeSheetStatusZod,
 } from "./job.validation.js";
 
 const router = Router();
@@ -61,7 +63,27 @@ router.patch(
   jobController.changeApplicationStatus
 );
 
+router.patch(
+  "/timesheets/:id/status",
+  authorize(UserRole.EMPLOYER),
+  validate(updateTimeSheetStatusZod),
+  jobController.changeTimeSheetStatus
+);
+
 router.post("/:id/apply", authorize(UserRole.WORKER), jobController.apply);
+
+router.post(
+  "/:id/timesheets",
+  authorize(UserRole.WORKER),
+  validate(createTimeSheetZod),
+  jobController.createTimeSheet
+);
+
+router.get(
+  "/:id/timesheets",
+  authorize(UserRole.EMPLOYER, UserRole.WORKER),
+  jobController.getTimeSheetByJob
+);
 
 router.get(
   "/:id/applications",

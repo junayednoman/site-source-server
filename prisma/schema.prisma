@@ -32,13 +32,13 @@ model Auth {
   jobsWorkedOn      Job[]            @relation("JobWorker")
   sentMessages      Message[]        @relation("MessageSender")
   receivedMessages  Message[]        @relation("MessageReceiver")
-  disputes          Dispute[]
   givenReviews      Review[]         @relation("ReviewGiver")
   reviews           Review[]         @relation("ReviewReceiver")
   notifications     Notification[]
   bookmarkedJobs    JobBookmark[]
   bookmarkedWorkers WorkerBookmark[] @relation("BookmarkedWorker")
   workerBookmarks   WorkerBookmark[] @relation("WorkerBookmarker")
+  supportTickets    SupportTicket[]
 }
 
 model OTP {
@@ -130,19 +130,21 @@ type WorkingHour {
 model TimeSheet {
   id             String          @id @default(auto()) @map("_id") @db.ObjectId
   jobId          String          @db.ObjectId
-  authId         String          @db.ObjectId
-  auth           Auth            @relation(fields: [authId], references: [id])
+  workerAuthId   String          @db.ObjectId
+  workerAuth     Auth            @relation(fields: [workerAuthId], references: [id])
   job            Job             @relation(fields: [jobId], references: [id])
-  week           Int
-  mondayHours    Int
-  tuesdayHours   Int
-  wednesdayHours Int
-  thursdayHours  Int
-  fridayHours    Int
+  week           Int?
+  mondayHours    Int?
+  tuesdayHours   Int?
+  wednesdayHours Int?
+  thursdayHours  Int?
+  fridayHours    Int?
+  saturdayHours  Int?
+  sundayHours    Int?
   status         TimeSheetStatus
   createdAt      DateTime        @default(now())
 
-  @@unique([jobId, authId])
+  @@unique([jobId, workerAuthId])
 }
 
 model JobApplication {
@@ -190,16 +192,14 @@ model Message {
   createdAt      DateTime     @default(now())
 }
 
-model Dispute {
-  id                 String        @id @default(auto()) @map("_id") @db.ObjectId
-  raiserAuthId       String        @db.ObjectId
-  raiserAuth         Auth          @relation(fields: [raiserAuthId], references: [id])
-  employerReason     String?
-  workerReason       String?
-  employerAttachment String?
-  workerAttachment   String?
-  status             DisputeStatus @default(REVIEWING)
-  raisedAt           DateTime      @default(now())
+model SupportTicket {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  senderAuthId String   @db.ObjectId
+  senderAuth   Auth     @relation(fields: [senderAuthId], references: [id])
+  subject      String
+  message      String
+  attachments  String[]
+  createdAt    DateTime @default(now())
 }
 
 model Review {
@@ -213,6 +213,8 @@ model Review {
   rating         Int
   feedback       String?
   givenAt        DateTime @default(now())
+
+  @@unique([jobId, receiverAuthId])
 }
 
 model JobBookmark {
@@ -263,11 +265,6 @@ enum JobMustHave {
   CSCS_CARDS
   OWN_TOOLS
   OWN_PPE
-}
-
-enum DisputeStatus {
-  REVIEWING
-  RESOLVED
 }
 
 enum TimeSheetStatus {
