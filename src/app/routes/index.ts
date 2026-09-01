@@ -7,6 +7,7 @@ import { jobRoutes } from "../modules/job/job.routes.js";
 import { otpRoutes } from "../modules/otp/otp.routes.js";
 import { supportRoutes } from "../modules/support/support.routes.js";
 import { reviewRoutes } from "../modules/review/review.routes.js";
+import { bookmarkRoutes } from "../modules/bookmark/bookmark.routes.js";
 
 const router = Router();
 
@@ -19,6 +20,7 @@ const routes = [
   { path: "/jobs", route: jobRoutes },
   { path: "/support", route: supportRoutes },
   { path: "/reviews", route: reviewRoutes },
+  { path: "/bookmarks", route: bookmarkRoutes },
 ];
 
 routes.forEach(route => {
