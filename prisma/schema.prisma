@@ -214,7 +214,7 @@ model Review {
   feedback       String?
   givenAt        DateTime @default(now())
 
-  @@unique([jobId, receiverAuthId])
+  @@unique([jobId, giverAuthId])
 }
 
 model JobBookmark {
