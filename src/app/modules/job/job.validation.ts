@@ -1,5 +1,10 @@
 import z from "zod";
-import { ApplicationStatus, JobMustHave, JobTrade } from "@prisma/client";
+import {
+  ApplicationStatus,
+  JobMustHave,
+  JobOfferStatus,
+  JobTrade,
+} from "@prisma/client";
 
 const locationZod = z.object({
   type: z.string().default("Point"),
@@ -36,4 +41,15 @@ export type TCreateJob = z.infer<typeof createJobZod>;
 
 export const updateApplicationStatusZod = z.object({
   status: z.enum([ApplicationStatus.ACCEPTED, ApplicationStatus.REJECTED]),
+});
+
+export const sendJobOfferZod = z.object({
+  jobId: z.string().min(1, "Job id is required"),
+  workerAuthId: z.string().min(1, "Worker id is required"),
+});
+
+export type TSendJobOffer = z.infer<typeof sendJobOfferZod>;
+
+export const updateJobOfferStatusZod = z.object({
+  status: z.enum([JobOfferStatus.ACCEPTED, JobOfferStatus.REJECTED]),
 });

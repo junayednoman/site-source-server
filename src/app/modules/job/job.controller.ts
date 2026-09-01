@@ -108,6 +108,69 @@ const changeApplicationStatus = handleAsyncRequest(
   }
 );
 
+const sendOffer = handleAsyncRequest(async (req: TRequest, res: Response) => {
+  const result = await jobServices.sendOffer(req.user?.id as string, req.body);
+  sendResponse(res, {
+    status: 201,
+    message: "Job offer sent successfully!",
+    data: result,
+  });
+});
+
+const getSentOffers = handleAsyncRequest(
+  async (req: TRequest, res: Response) => {
+    const options = pick(req.query, ["page", "limit", "sortBy", "orderBy"]);
+    const result = await jobServices.getSentOffers(
+      req.user?.id as string,
+      options
+    );
+    sendResponse(res, {
+      message: "Sent offers fetched successfully!",
+      data: result,
+    });
+  }
+);
+
+const getReceivedOffers = handleAsyncRequest(
+  async (req: TRequest, res: Response) => {
+    const options = pick(req.query, ["page", "limit", "sortBy", "orderBy"]);
+    const result = await jobServices.getReceivedOffers(
+      req.user?.id as string,
+      options
+    );
+    sendResponse(res, {
+      message: "Received offers fetched successfully!",
+      data: result,
+    });
+  }
+);
+
+const getEmployerJobTitles = handleAsyncRequest(
+  async (req: TRequest, res: Response) => {
+    const result = await jobServices.getEmployerJobTitles(
+      req.user?.id as string
+    );
+    sendResponse(res, {
+      message: "Job titles fetched successfully!",
+      data: result,
+    });
+  }
+);
+
+const changeJobOfferStatus = handleAsyncRequest(
+  async (req: TRequest, res: Response) => {
+    const result = await jobServices.changeJobOfferStatus(
+      req.user?.id as string,
+      req.params.id as string,
+      req.body.status
+    );
+    sendResponse(res, {
+      message: "Job offer status changed successfully!",
+      data: result,
+    });
+  }
+);
+
 export const jobController = {
   create,
   getMyJobs,
@@ -117,4 +180,9 @@ export const jobController = {
   getMyAppliedJobs,
   getApplicationsByJob,
   changeApplicationStatus,
+  sendOffer,
+  getSentOffers,
+  getReceivedOffers,
+  getEmployerJobTitles,
+  changeJobOfferStatus,
 };

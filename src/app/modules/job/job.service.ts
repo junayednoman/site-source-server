@@ -1,11 +1,18 @@
-import { ApplicationStatus, JobStatus, JobTrade, Prisma } from "@prisma/client";
+import {
+  ApplicationStatus,
+  JobStatus,
+  JobOfferStatus,
+  JobTrade,
+  Prisma,
+  UserRole,
+} from "@prisma/client";
 import ApiError from "../../classes/ApiError.js";
 import prisma from "../../utils/prisma.js";
 import {
   calculatePagination,
   TPaginationOptions,
 } from "../../utils/paginationCalculation.js";
-import { TCreateJob } from "./job.validation.js";
+import { TCreateJob, TSendJobOffer } from "./job.validation.js";
 
 const MILES_PER_KILOMETER = 0.621371;
 
@@ -425,7 +432,7 @@ const getSingle = async (employerAuthId: string, jobId: string) => {
           },
         },
       },
-      jobOffer: true,
+      jobOffers: true,
       timeSheets: true,
       conversations: {
         include: {
@@ -634,6 +641,211 @@ const changeApplicationStatus = async (
   return result;
 };
 
+const sendOffer = async (employerAuthId: string, payload: TSendJobOffer) => {
+  await prisma.job.findFirstOrThrow({
+    where: {
+      id: payload.jobId,
+      employerAuthId,
+    },
+  });
+
+  await prisma.auth.findFirstOrThrow({
+    where: {
+      id: payload.workerAuthId,
+      role: UserRole.WORKER,
+    },
+  });
+
+  const existingOffer = await prisma.jobOffer.findFirst({
+    where: {
+      jobId: payload.jobId,
+      workerAuthId: payload.workerAuthId,
+    },
+  });
+
+  if (existingOffer) {
+    throw new ApiError(400, "Job offer already sent to this worker!");
+  }
+
+  const result = await prisma.jobOffer.create({
+    data: {
+      jobId: payload.jobId,
+      workerAuthId: payload.workerAuthId,
+    },
+  });
+
+  return result;
+};
+
+const getSentOffers = async (
+  employerAuthId: string,
+  options: TPaginationOptions
+) => {
+  const { page, take, skip, sortBy, orderBy } = calculatePagination(options);
+
+  const offers = await prisma.jobOffer.findMany({
+    where: {
+      job: {
+        employerAuthId,
+      },
+    },
+    include: {
+      job: true,
+      workerAuth: {
+        select: {
+          id: true,
+          email: true,
+          profile: true,
+          workerProfile: true,
+        },
+      },
+    },
+    skip,
+    take,
+    orderBy: sortBy && orderBy ? { [sortBy]: orderBy } : { offeredAt: "desc" },
+  });
+
+  const total = await prisma.jobOffer.count({
+    where: {
+      job: {
+        employerAuthId,
+      },
+    },
+  });
+
+  const meta = {
+    page,
+    limit: take,
+    total,
+  };
+
+  return { meta, offers };
+};
+
+const getReceivedOffers = async (
+  workerAuthId: string,
+  options: TPaginationOptions
+) => {
+  const { page, take, skip, sortBy, orderBy } = calculatePagination(options);
+
+  const offers = await prisma.jobOffer.findMany({
+    where: {
+      workerAuthId,
+    },
+    include: {
+      job: {
+        include: {
+          employerAuth: {
+            select: {
+              id: true,
+              email: true,
+              profile: true,
+              employerProfile: true,
+            },
+          },
+        },
+      },
+    },
+    skip,
+    take,
+    orderBy: sortBy && orderBy ? { [sortBy]: orderBy } : { offeredAt: "desc" },
+  });
+
+  const total = await prisma.jobOffer.count({
+    where: {
+      workerAuthId,
+    },
+  });
+
+  const meta = {
+    page,
+    limit: take,
+    total,
+  };
+
+  return { meta, offers };
+};
+
+const getEmployerJobTitles = async (employerAuthId: string) => {
+  const jobs = await prisma.job.findMany({
+    where: {
+      employerAuthId,
+    },
+    select: {
+      id: true,
+      title: true,
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+
+  return jobs;
+};
+
+const changeJobOfferStatus = async (
+  workerAuthId: string,
+  offerId: string,
+  status: JobOfferStatus
+) => {
+  const offer = await prisma.jobOffer.findFirstOrThrow({
+    where: {
+      id: offerId,
+      workerAuthId,
+    },
+    include: {
+      job: true,
+    },
+  });
+
+  if (status === JobOfferStatus.REJECTED) {
+    const result = await prisma.jobOffer.update({
+      where: {
+        id: offerId,
+      },
+      data: {
+        status,
+      },
+    });
+
+    return result;
+  }
+
+  const result = await prisma.$transaction(async tn => {
+    const acceptedOffer = await tn.jobOffer.update({
+      where: {
+        id: offerId,
+      },
+      data: {
+        status: JobOfferStatus.ACCEPTED,
+      },
+    });
+
+    await tn.jobApplication.updateMany({
+      where: {
+        jobId: offer.jobId,
+      },
+      data: {
+        status: ApplicationStatus.REJECTED,
+      },
+    });
+
+    await tn.job.update({
+      where: {
+        id: offer.jobId,
+      },
+      data: {
+        status: JobStatus.ACTIVE,
+        workerAuthId,
+      },
+    });
+
+    return acceptedOffer;
+  });
+
+  return result;
+};
+
 export const jobServices = {
   create,
   getMyJobs,
@@ -643,4 +855,9 @@ export const jobServices = {
   getMyAppliedJobs,
   getApplicationsByJob,
   changeApplicationStatus,
+  sendOffer,
+  getSentOffers,
+  getReceivedOffers,
+  getEmployerJobTitles,
+  changeJobOfferStatus,
 };

@@ -111,7 +111,7 @@ model Job {
   mustHave        JobMustHave[]
   note            String
   jobApplications JobApplication[]
-  jobOffer        JobOffer?
+  jobOffers       JobOffer[]
   timeSheets      TimeSheet[]
   conversations   Conversation[]
   reviews         Review[]
@@ -158,12 +158,15 @@ model JobApplication {
 }
 
 model JobOffer {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  jobId     String   @unique @db.ObjectId
-  job       Job      @relation(fields: [jobId], references: [id])
-  appliedAt DateTime @default(now())
-  auth      Auth?    @relation(fields: [authId], references: [id])
-  authId    String?  @db.ObjectId
+  id           String         @id @default(auto()) @map("_id") @db.ObjectId
+  jobId        String         @db.ObjectId
+  job          Job            @relation(fields: [jobId], references: [id])
+  workerAuth   Auth?          @relation(fields: [workerAuthId], references: [id])
+  workerAuthId String?        @db.ObjectId
+  status       JobOfferStatus @default(PENDING)
+  offeredAt    DateTime       @default(now())
+
+  @@unique([jobId, workerAuthId])
 }
 
 model Conversation {
