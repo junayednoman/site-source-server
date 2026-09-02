@@ -8,6 +8,7 @@ import { updateWorkerProfileZod } from "./worker.validation.js";
 
 const router = Router();
 
+router.get("/", authorize(UserRole.EMPLOYER), workerController.getAll);
 router.get("/profile", authorize(), workerController.getProfile);
 router.get("/details", authorize(UserRole.WORKER), workerController.getDetails);
 router.patch(

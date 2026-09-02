@@ -70,6 +70,14 @@ const getNumberQuery = (value: unknown) => {
   return Number.isNaN(numberValue) ? undefined : numberValue;
 };
 
+const getDateQuery = (value: unknown) => {
+  const stringValue = getStringQuery(value);
+  if (!stringValue) return undefined;
+
+  const dateValue = new Date(stringValue);
+  return Number.isNaN(dateValue.getTime()) ? undefined : dateValue;
+};
+
 const getTradeQuery = (value: unknown) => {
   const stringValue = getStringQuery(value);
   if (!stringValue) return undefined;
@@ -143,6 +151,7 @@ const getMyJobs = async (
       location: true,
       workersNeeded: true,
       startDate: true,
+      hourlyRate: true,
       endDate: true,
       status: true,
       jobApplications: {
@@ -226,6 +235,14 @@ const getAllForWorker = async (
 
   andConditions.push({
     status: JobStatus.POSTED,
+    startDate: {
+      gte: new Date(),
+    },
+    jobApplications: {
+      none: {
+        authId: workerAuthId,
+      },
+    },
   });
 
   if (searchTerm) {
@@ -399,11 +416,227 @@ const getAllForWorker = async (
   return { meta, jobs: formattedJobs };
 };
 
-const getSingle = async (employerAuthId: string, jobId: string) => {
+const getAvailableMapJobsForWorker = async (
+  workerAuthId: string,
+  options: TPaginationOptions,
+  query: Record<string, unknown>
+) => {
+  const latitude = getNumberQuery(query.latitude) || getNumberQuery(query.lat);
+  const longitude =
+    getNumberQuery(query.longitude) || getNumberQuery(query.lng);
+  const radius = getNumberQuery(query.radius) || 10;
+  const trades = getTradeQuery(query.trade);
+  const startDateFrom = getDateQuery(query.startDateFrom);
+  const startDateTo = getDateQuery(query.startDateTo);
+
+  const andConditions: Prisma.JobWhereInput[] = [
+    {
+      status: JobStatus.POSTED,
+      jobApplications: {
+        none: {
+          authId: workerAuthId,
+        },
+      },
+    },
+  ];
+
+  if (trades?.length) {
+    andConditions.push({
+      trades: {
+        hasSome: trades,
+      },
+    });
+  }
+
+  if (startDateFrom || startDateTo) {
+    andConditions.push({
+      startDate: {
+        ...(startDateFrom ? { gte: startDateFrom } : {}),
+        ...(startDateTo ? { lte: startDateTo } : {}),
+      },
+    });
+  }
+
+  const whereConditions: Prisma.JobWhereInput = {
+    AND: andConditions,
+  };
+
+  const jobs = await prisma.job.findMany({
+    where: whereConditions,
+    select: {
+      id: true,
+      title: true,
+      location: true,
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+
+  const userCoordinates =
+    latitude !== undefined && longitude !== undefined
+      ? [longitude, latitude]
+      : undefined;
+
+  const filteredJobs = jobs.filter(job => {
+    if (!userCoordinates) return true;
+
+    const distance = getDistanceInMiles(
+      userCoordinates,
+      job.location.coordinates
+    );
+    if (distance === null) return false;
+
+    return distance <= radius;
+  });
+
+  const { page, take, skip } = calculatePagination(options);
+  const paginatedJobs = filteredJobs.slice(skip, skip + take);
+
+  const meta = {
+    page,
+    limit: take,
+    total: filteredJobs.length,
+  };
+
+  return { meta, jobs: paginatedJobs };
+};
+
+const getActiveJobsForWorker = async (
+  workerAuthId: string,
+  options: TPaginationOptions,
+  query: Record<string, unknown>
+) => {
+  const workerProfile = await prisma.workerProfile.findUniqueOrThrow({
+    where: {
+      authId: workerAuthId,
+    },
+    select: {
+      address: true,
+    },
+  });
+
+  const andConditions: Prisma.JobWhereInput[] = [
+    {
+      workerAuthId,
+      status: {
+        not: JobStatus.POSTED,
+      },
+    },
+  ];
+
+  if (query.status === "active") {
+    andConditions.push({
+      status: JobStatus.ACTIVE,
+    });
+  }
+
+  if (query.status === "completed") {
+    andConditions.push({
+      status: {
+        in: [JobStatus.COMPLETED, JobStatus.CANCELLED],
+      },
+    });
+  }
+
+  const whereConditions: Prisma.JobWhereInput = {
+    AND: andConditions,
+  };
+
+  const { page, take, skip, sortBy, orderBy } = calculatePagination(options);
+
+  const jobs = await prisma.job.findMany({
+    where: whereConditions,
+    select: {
+      id: true,
+      employerAuthId: true,
+      title: true,
+      location: true,
+      workersNeeded: true,
+      status: true,
+      startDate: true,
+      endDate: true,
+      employerAuth: {
+        select: {
+          profile: {
+            select: {
+              name: true,
+              image: true,
+            },
+          },
+        },
+      },
+    },
+    skip,
+    take,
+    orderBy: sortBy && orderBy ? { [sortBy]: orderBy } : { createdAt: "desc" },
+  });
+
+  const total = await prisma.job.count({
+    where: whereConditions,
+  });
+
+  const employerAuthIds = [...new Set(jobs.map(job => job.employerAuthId))];
+  const employerReviews = await prisma.review.groupBy({
+    by: ["receiverAuthId"],
+    where: {
+      receiverAuthId: {
+        in: employerAuthIds,
+      },
+    },
+    _avg: {
+      rating: true,
+    },
+    _count: {
+      rating: true,
+    },
+  });
+
+  const employerReviewMap = new Map(
+    employerReviews.map(review => [
+      review.receiverAuthId,
+      {
+        avgRating: review._avg.rating || 0,
+        totalReviews: review._count.rating,
+      },
+    ])
+  );
+
+  const workerCoordinates = workerProfile.address?.coordinates;
+  const formattedJobs = jobs.map(job => {
+    const employerReview = employerReviewMap.get(job.employerAuthId);
+
+    return {
+      id: job.id,
+      employer: {
+        name: job.employerAuth.profile?.name,
+        image: job.employerAuth.profile?.image,
+        avgRating: employerReview?.avgRating || 0,
+        totalReviews: employerReview?.totalReviews || 0,
+      },
+      title: job.title,
+      location: job.location,
+      distance: getDistanceInMiles(workerCoordinates, job.location.coordinates),
+      workersNeeded: job.workersNeeded,
+      status: job.status,
+      startDate: job.startDate,
+      endDate: job.endDate,
+    };
+  });
+
+  const meta = {
+    page,
+    limit: take,
+    total,
+  };
+
+  return { meta, jobs: formattedJobs };
+};
+
+const getSingle = async (jobId: string) => {
   const job = await prisma.job.findFirstOrThrow({
     where: {
       id: jobId,
-      employerAuthId,
     },
     include: {
       employerAuth: {
@@ -460,7 +693,10 @@ const apply = async (workerAuthId: string, jobId: string) => {
   });
 
   if (job.startDate < new Date()) {
-    throw new ApiError(400, "Cannot apply to a job that has already started!");
+    throw new ApiError(
+      400,
+      "Cannot apply to a job whose start date has passed!"
+    );
   }
 
   const existingApplication = await prisma.jobApplication.findUnique({
@@ -594,6 +830,10 @@ const changeApplicationStatus = async (
       job: true,
     },
   });
+
+  if (application.status !== ApplicationStatus.PENDING) {
+    throw new ApiError(400, "Application status has already been changed!");
+  }
 
   if (status === ApplicationStatus.REJECTED) {
     const result = await prisma.jobApplication.update({
@@ -819,6 +1059,10 @@ const changeJobOfferStatus = async (
     },
   });
 
+  if (offer.status !== JobOfferStatus.PENDING) {
+    throw new ApiError(400, "Job offer status has already been changed!");
+  }
+
   if (status === JobOfferStatus.REJECTED) {
     const result = await prisma.jobOffer.update({
       where: {
@@ -994,6 +1238,8 @@ export const jobServices = {
   create,
   getMyJobs,
   getAllForWorker,
+  getAvailableMapJobsForWorker,
+  getActiveJobsForWorker,
   getSingle,
   apply,
   getMyAppliedJobs,

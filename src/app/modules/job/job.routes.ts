@@ -31,6 +31,18 @@ router.get(
 );
 
 router.get(
+  "/available-map-jobs",
+  authorize(UserRole.WORKER),
+  jobController.getAvailableMapJobsForWorker
+);
+
+router.get(
+  "/worker-active-jobs",
+  authorize(UserRole.WORKER),
+  jobController.getActiveJobsForWorker
+);
+
+router.get(
   "/offers/sent",
   authorize(UserRole.EMPLOYER),
   jobController.getSentOffers
@@ -91,7 +103,11 @@ router.get(
   jobController.getApplicationsByJob
 );
 
-router.get("/:id", authorize(UserRole.EMPLOYER), jobController.getSingle);
+router.get(
+  "/:id",
+  authorize(UserRole.EMPLOYER, UserRole.WORKER),
+  jobController.getSingle
+);
 
 router.post(
   "/",

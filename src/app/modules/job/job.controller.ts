@@ -43,11 +43,40 @@ const getAllForWorker = handleAsyncRequest(
   }
 );
 
+const getAvailableMapJobsForWorker = handleAsyncRequest(
+  async (req: TRequest, res: Response) => {
+    const options = pick(req.query, ["page", "limit"]);
+    const result = await jobServices.getAvailableMapJobsForWorker(
+      req.user?.id as string,
+      options,
+      req.query
+    );
+
+    sendResponse(res, {
+      message: "Jobs fetched successfully!",
+      data: result,
+    });
+  }
+);
+
+const getActiveJobsForWorker = handleAsyncRequest(
+  async (req: TRequest, res: Response) => {
+    const options = pick(req.query, ["page", "limit", "sortBy", "orderBy"]);
+    const result = await jobServices.getActiveJobsForWorker(
+      req.user?.id as string,
+      options,
+      req.query
+    );
+
+    sendResponse(res, {
+      message: "Jobs fetched successfully!",
+      data: result,
+    });
+  }
+);
+
 const getSingle = handleAsyncRequest(async (req: TRequest, res: Response) => {
-  const result = await jobServices.getSingle(
-    req.user?.id as string,
-    req.params.id as string
-  );
+  const result = await jobServices.getSingle(req.params.id as string);
   sendResponse(res, {
     message: "Job fetched successfully!",
     data: result,
@@ -219,6 +248,8 @@ export const jobController = {
   create,
   getMyJobs,
   getAllForWorker,
+  getAvailableMapJobsForWorker,
+  getActiveJobsForWorker,
   getSingle,
   apply,
   getMyAppliedJobs,

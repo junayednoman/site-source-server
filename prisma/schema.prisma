@@ -143,7 +143,6 @@ model TimeSheet {
   fridayHours    Int?
   saturdayHours  Int?
   sundayHours    Int?
-  status         TimeSheetStatus
   createdAt      DateTime        @default(now())
 
   @@unique([jobId, workerAuthId])
