@@ -32,6 +32,8 @@ model Auth {
   jobsWorkedOn      Job[]            @relation("JobWorker")
   sentMessages      Message[]        @relation("MessageSender")
   receivedMessages  Message[]        @relation("MessageReceiver")
+  employerChats     Conversation[]   @relation("ConversationEmployer")
+  workerChats       Conversation[]   @relation("ConversationWorker")
   givenReviews      Review[]         @relation("ReviewGiver")
   reviews           Review[]         @relation("ReviewReceiver")
   notifications     Notification[]
@@ -172,10 +174,18 @@ model JobOffer {
 }
 
 model Conversation {
-  id       String    @id @default(auto()) @map("_id") @db.ObjectId
-  jobId    String    @db.ObjectId
-  job      Job       @relation(fields: [jobId], references: [id])
-  messages Message[]
+  id             String    @id @default(auto()) @map("_id") @db.ObjectId
+  jobId          String    @db.ObjectId
+  job            Job       @relation(fields: [jobId], references: [id])
+  employerAuthId String    @db.ObjectId
+  employerAuth   Auth      @relation(name: "ConversationEmployer", fields: [employerAuthId], references: [id])
+  workerAuthId   String    @db.ObjectId
+  workerAuth     Auth      @relation(name: "ConversationWorker", fields: [workerAuthId], references: [id])
+  messages       Message[]
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@unique([jobId, employerAuthId, workerAuthId])
 }
 
 model Message {
@@ -189,6 +199,7 @@ model Message {
   senderAuth     Auth         @relation(name: "MessageSender", fields: [senderAuthId], references: [id])
   receiverAuth   Auth         @relation(name: "MessageReceiver", fields: [receiverAuthId], references: [id])
   hasRead        Boolean      @default(false)
+  readAt         DateTime?
   createdAt      DateTime     @default(now())
 }
 

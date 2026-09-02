@@ -640,6 +640,22 @@ const changeApplicationStatus = async (
       },
     });
 
+    await tn.conversation.upsert({
+      where: {
+        jobId_employerAuthId_workerAuthId: {
+          jobId: application.jobId,
+          employerAuthId,
+          workerAuthId: application.authId,
+        },
+      },
+      update: {},
+      create: {
+        jobId: application.jobId,
+        employerAuthId,
+        workerAuthId: application.authId,
+      },
+    });
+
     return acceptedApplication;
   });
 
@@ -841,6 +857,22 @@ const changeJobOfferStatus = async (
       },
       data: {
         status: JobStatus.ACTIVE,
+        workerAuthId,
+      },
+    });
+
+    await tn.conversation.upsert({
+      where: {
+        jobId_employerAuthId_workerAuthId: {
+          jobId: offer.jobId,
+          employerAuthId: offer.job.employerAuthId,
+          workerAuthId,
+        },
+      },
+      update: {},
+      create: {
+        jobId: offer.jobId,
+        employerAuthId: offer.job.employerAuthId,
         workerAuthId,
       },
     });

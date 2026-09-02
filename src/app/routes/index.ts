@@ -8,6 +8,7 @@ import { otpRoutes } from "../modules/otp/otp.routes.js";
 import { supportRoutes } from "../modules/support/support.routes.js";
 import { reviewRoutes } from "../modules/review/review.routes.js";
 import { bookmarkRoutes } from "../modules/bookmark/bookmark.routes.js";
+import { chatRoutes } from "../modules/chat/chat.routes.js";
 
 const router = Router();
 
@@ -21,6 +22,7 @@ const routes = [
   { path: "/support", route: supportRoutes },
   { path: "/reviews", route: reviewRoutes },
   { path: "/bookmarks", route: bookmarkRoutes },
+  { path: "/chats", route: chatRoutes },
 ];
 
 routes.forEach(route => {
