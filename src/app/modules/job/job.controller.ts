@@ -32,7 +32,7 @@ const getAllForWorker = handleAsyncRequest(
   async (req: TRequest, res: Response) => {
     const options = pick(req.query, ["page", "limit", "sortBy", "orderBy"]);
     const result = await jobServices.getAllForWorker(
-      req.user?.id as string,
+      req.user?.id,
       options,
       req.query
     );
@@ -47,7 +47,7 @@ const getAvailableMapJobsForWorker = handleAsyncRequest(
   async (req: TRequest, res: Response) => {
     const options = pick(req.query, ["page", "limit"]);
     const result = await jobServices.getAvailableMapJobsForWorker(
-      req.user?.id as string,
+      req.user?.id,
       options,
       req.query
     );
@@ -230,6 +230,21 @@ const getTimeSheetByJob = handleAsyncRequest(
   }
 );
 
+const getPendingTimeSheetsForEmployer = handleAsyncRequest(
+  async (req: TRequest, res: Response) => {
+    const options = pick(req.query, ["page", "limit", "sortBy", "orderBy"]);
+    const result = await jobServices.getPendingTimeSheetsForEmployer(
+      req.user?.id as string,
+      options
+    );
+
+    sendResponse(res, {
+      message: "Pending TimeSheets fetched successfully!",
+      data: result,
+    });
+  }
+);
+
 const changeTimeSheetStatus = handleAsyncRequest(
   async (req: TRequest, res: Response) => {
     const result = await jobServices.changeTimeSheetStatus(
@@ -238,7 +253,20 @@ const changeTimeSheetStatus = handleAsyncRequest(
       req.body.status
     );
     sendResponse(res, {
-      message: "TimeSheet status changed successfully!",
+      message: "TimeSheet day status changed successfully!",
+      data: result,
+    });
+  }
+);
+
+const approveAllTimeSheetDays = handleAsyncRequest(
+  async (req: TRequest, res: Response) => {
+    const result = await jobServices.approveAllTimeSheetDays(
+      req.user?.id as string,
+      req.params.id as string
+    );
+    sendResponse(res, {
+      message: "TimeSheet days approved successfully!",
       data: result,
     });
   }
@@ -262,5 +290,7 @@ export const jobController = {
   changeJobOfferStatus,
   createTimeSheet,
   getTimeSheetByJob,
+  getPendingTimeSheetsForEmployer,
   changeTimeSheetStatus,
+  approveAllTimeSheetDays,
 };

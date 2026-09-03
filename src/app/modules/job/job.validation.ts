@@ -4,6 +4,7 @@ import {
   JobMustHave,
   JobOfferStatus,
   JobTrade,
+  TimeSheetDay,
   TimeSheetStatus,
 } from "@prisma/client";
 
@@ -57,41 +58,14 @@ export const updateJobOfferStatusZod = z.object({
 
 export const createTimeSheetZod = z.object({
   week: z.coerce.number().int().min(1, "Week must be at least 1").optional(),
-  mondayHours: z.coerce
-    .number()
-    .int()
-    .min(0, "Monday hours cannot be negative")
-    .optional(),
-  tuesdayHours: z.coerce
-    .number()
-    .int()
-    .min(0, "Tuesday hours cannot be negative")
-    .optional(),
-  wednesdayHours: z.coerce
-    .number()
-    .int()
-    .min(0, "Wednesday hours cannot be negative")
-    .optional(),
-  thursdayHours: z.coerce
-    .number()
-    .int()
-    .min(0, "Thursday hours cannot be negative")
-    .optional(),
-  fridayHours: z.coerce
-    .number()
-    .int()
-    .min(0, "Friday hours cannot be negative")
-    .optional(),
-  saturdayHours: z.coerce
-    .number()
-    .int()
-    .min(0, "Saturday hours cannot be negative")
-    .optional(),
-  sundayHours: z.coerce
-    .number()
-    .int()
-    .min(0, "Sunday hours cannot be negative")
-    .optional(),
+  timeSheetDays: z
+    .array(
+      z.object({
+        day: z.nativeEnum(TimeSheetDay),
+        hours: z.coerce.number().int().min(0, "Hours cannot be negative"),
+      })
+    )
+    .nonempty("TimeSheet days are required"),
 });
 
 export type TCreateTimeSheet = z.infer<typeof createTimeSheetZod>;

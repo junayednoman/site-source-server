@@ -2,7 +2,6 @@ import {
   ApplicationStatus,
   JobStatus,
   JobOfferStatus,
-  JobTrade,
   Prisma,
   TimeSheetStatus,
   UserRole,
@@ -18,77 +17,13 @@ import {
   TCreateTimeSheet,
   TSendJobOffer,
 } from "./job.validation.js";
-
-const MILES_PER_KILOMETER = 0.621371;
-
-const getDistanceInMiles = (
-  firstCoordinates?: number[],
-  secondCoordinates?: number[]
-) => {
-  if (!firstCoordinates?.length || !secondCoordinates?.length) return null;
-
-  const [firstLongitude, firstLatitude] = firstCoordinates;
-  const [secondLongitude, secondLatitude] = secondCoordinates;
-
-  if (
-    firstLongitude === undefined ||
-    firstLatitude === undefined ||
-    secondLongitude === undefined ||
-    secondLatitude === undefined
-  ) {
-    return null;
-  }
-
-  const toRadians = (value: number) => (value * Math.PI) / 180;
-  const earthRadiusInKm = 6371;
-  const latitudeDifference = toRadians(secondLatitude - firstLatitude);
-  const longitudeDifference = toRadians(secondLongitude - firstLongitude);
-
-  const haversineValue =
-    Math.sin(latitudeDifference / 2) * Math.sin(latitudeDifference / 2) +
-    Math.cos(toRadians(firstLatitude)) *
-      Math.cos(toRadians(secondLatitude)) *
-      Math.sin(longitudeDifference / 2) *
-      Math.sin(longitudeDifference / 2);
-
-  const distanceInKm =
-    earthRadiusInKm *
-    2 *
-    Math.atan2(Math.sqrt(haversineValue), Math.sqrt(1 - haversineValue));
-
-  return Number((distanceInKm * MILES_PER_KILOMETER).toFixed(2));
-};
-
-const getStringQuery = (value: unknown) =>
-  typeof value === "string" && value.trim() ? value.trim() : undefined;
-
-const getNumberQuery = (value: unknown) => {
-  const stringValue = getStringQuery(value);
-  if (!stringValue) return undefined;
-
-  const numberValue = Number(stringValue);
-  return Number.isNaN(numberValue) ? undefined : numberValue;
-};
-
-const getDateQuery = (value: unknown) => {
-  const stringValue = getStringQuery(value);
-  if (!stringValue) return undefined;
-
-  const dateValue = new Date(stringValue);
-  return Number.isNaN(dateValue.getTime()) ? undefined : dateValue;
-};
-
-const getTradeQuery = (value: unknown) => {
-  const stringValue = getStringQuery(value);
-  if (!stringValue) return undefined;
-
-  return stringValue
-    .split(",")
-    .map(trade => trade.trim())
-    .filter((trade): trade is JobTrade =>
-      Object.values(JobTrade).includes(trade as JobTrade)
-    );
-};
+import {
+  getDateQuery,
+  getDistanceInMiles,
+  getNumberQuery,
+  getStringQuery,
+  getTradeQuery,
+} from "./job.utils.js";
 
 const create = async (employerAuthId: string, payload: TCreateJob) => {
   const result = await prisma.job.create({
@@ -212,23 +147,18 @@ const getMyJobs = async (
 };
 
 const getAllForWorker = async (
-  workerAuthId: string,
+  workerAuthId: string | undefined,
   options: TPaginationOptions,
   query: Record<string, unknown>
 ) => {
-  const workerProfile = await prisma.workerProfile.findUniqueOrThrow({
-    where: {
-      authId: workerAuthId,
-    },
-    select: {
-      trades: true,
-      address: true,
-    },
-  });
-
   const filter = getStringQuery(query.filter);
   const searchTerm = getStringQuery(query.searchTerm);
   const hourlyRate = getNumberQuery(query.hourlyRate);
+  const latitude = getNumberQuery(query.latitude) || getNumberQuery(query.lat);
+  const longitude =
+    getNumberQuery(query.longitude) ||
+    getNumberQuery(query.long) ||
+    getNumberQuery(query.lng);
   const radius = getNumberQuery(query.radius);
   const trades = getTradeQuery(query.trade);
   const andConditions: Prisma.JobWhereInput[] = [];
@@ -238,12 +168,34 @@ const getAllForWorker = async (
     startDate: {
       gte: new Date(),
     },
-    jobApplications: {
-      none: {
+  });
+
+  if (workerAuthId) {
+    andConditions.push({
+      jobApplications: {
+        none: {
+          authId: workerAuthId,
+        },
+      },
+    });
+  }
+
+  if (workerAuthId && (filter === "best-match" || filter === "bestMatch")) {
+    const workerProfile = await prisma.workerProfile.findUniqueOrThrow({
+      where: {
         authId: workerAuthId,
       },
-    },
-  });
+      select: {
+        trades: true,
+      },
+    });
+
+    andConditions.push({
+      trades: {
+        hasSome: workerProfile.trades,
+      },
+    });
+  }
 
   if (searchTerm) {
     andConditions.push({
@@ -274,14 +226,6 @@ const getAllForWorker = async (
     andConditions.push({
       trades: {
         hasSome: trades,
-      },
-    });
-  }
-
-  if (filter === "best-match" || filter === "bestMatch") {
-    andConditions.push({
-      trades: {
-        hasSome: workerProfile.trades,
       },
     });
   }
@@ -327,7 +271,7 @@ const getAllForWorker = async (
       },
       jobBookmarks: {
         where: {
-          authId: workerAuthId,
+          authId: workerAuthId || "",
         },
         select: {
           id: true,
@@ -365,14 +309,21 @@ const getAllForWorker = async (
     ])
   );
 
-  const workerCoordinates = workerProfile.address?.coordinates;
+  const userCoordinates =
+    latitude !== undefined && longitude !== undefined
+      ? [longitude, latitude]
+      : undefined;
   const radiusInMiles =
-    filter === "nearby" ? radius || 50 : radius !== undefined ? radius : null;
+    userCoordinates && (filter === "nearby" || radius !== undefined)
+      ? filter === "nearby"
+        ? radius || 50
+        : radius || null
+      : null;
 
   const jobsWithDistance = jobs
     .map(job => ({
       ...job,
-      distance: getDistanceInMiles(workerCoordinates, job.location.coordinates),
+      distance: getDistanceInMiles(userCoordinates, job.location.coordinates),
     }))
     .filter(job => {
       if (radiusInMiles === null) return true;
@@ -403,7 +354,7 @@ const getAllForWorker = async (
       startDate: job.startDate,
       endDate: job.endDate,
       createdAt: job.createdAt,
-      hasBookmarked: job.jobBookmarks.length > 0,
+      hasBookmarked: workerAuthId ? job.jobBookmarks.length > 0 : false,
     };
   });
 
@@ -417,13 +368,15 @@ const getAllForWorker = async (
 };
 
 const getAvailableMapJobsForWorker = async (
-  workerAuthId: string,
+  workerAuthId: string | undefined,
   options: TPaginationOptions,
   query: Record<string, unknown>
 ) => {
   const latitude = getNumberQuery(query.latitude) || getNumberQuery(query.lat);
   const longitude =
-    getNumberQuery(query.longitude) || getNumberQuery(query.lng);
+    getNumberQuery(query.longitude) ||
+    getNumberQuery(query.long) ||
+    getNumberQuery(query.lng);
   const radius = getNumberQuery(query.radius) || 10;
   const trades = getTradeQuery(query.trade);
   const startDateFrom = getDateQuery(query.startDateFrom);
@@ -432,13 +385,18 @@ const getAvailableMapJobsForWorker = async (
   const andConditions: Prisma.JobWhereInput[] = [
     {
       status: JobStatus.POSTED,
+    },
+  ];
+
+  if (workerAuthId) {
+    andConditions.push({
       jobApplications: {
         none: {
           authId: workerAuthId,
         },
       },
-    },
-  ];
+    });
+  }
 
   if (trades?.length) {
     andConditions.push({
@@ -1157,14 +1115,15 @@ const createTimeSheet = async (
       jobId,
       workerAuthId,
       week: payload.week,
-      mondayHours: payload.mondayHours,
-      tuesdayHours: payload.tuesdayHours,
-      wednesdayHours: payload.wednesdayHours,
-      thursdayHours: payload.thursdayHours,
-      fridayHours: payload.fridayHours,
-      saturdayHours: payload.saturdayHours,
-      sundayHours: payload.sundayHours,
-      status: TimeSheetStatus.PENDING,
+      timeSheetDays: {
+        create: payload.timeSheetDays.map(timeSheetDay => ({
+          day: timeSheetDay.day,
+          hours: timeSheetDay.hours,
+        })),
+      },
+    },
+    include: {
+      timeSheetDays: true,
     },
   });
 
@@ -1202,18 +1161,95 @@ const getTimeSheetByJob = async (
         },
       },
       job: true,
+      timeSheetDays: true,
     },
   });
 
   return timeSheet;
 };
 
+const getPendingTimeSheetsForEmployer = async (
+  employerAuthId: string,
+  options: TPaginationOptions
+) => {
+  const { page, take, skip, sortBy, orderBy } = calculatePagination(options);
+
+  const whereConditions: Prisma.TimeSheetWhereInput = {
+    job: {
+      employerAuthId,
+    },
+    timeSheetDays: {
+      some: {
+        status: TimeSheetStatus.PENDING,
+      },
+    },
+  };
+
+  const timeSheets = await prisma.timeSheet.findMany({
+    where: whereConditions,
+    include: {
+      workerAuth: {
+        select: {
+          id: true,
+          email: true,
+          profile: true,
+          workerProfile: true,
+        },
+      },
+      job: true,
+      timeSheetDays: true,
+    },
+    skip,
+    take,
+    orderBy: sortBy && orderBy ? { [sortBy]: orderBy } : { createdAt: "desc" },
+  });
+
+  const total = await prisma.timeSheet.count({
+    where: whereConditions,
+  });
+
+  const meta = {
+    page,
+    limit: take,
+    total,
+  };
+
+  return { meta, timeSheets };
+};
+
 const changeTimeSheetStatus = async (
   employerAuthId: string,
-  timeSheetId: string,
+  timeSheetDayId: string,
   status: TimeSheetStatus
 ) => {
-  const timeSheet = await prisma.timeSheet.findFirstOrThrow({
+  const timeSheetDay = await prisma.timeSheetDayEntry.findFirstOrThrow({
+    where: {
+      id: timeSheetDayId,
+      timeSheet: {
+        job: {
+          employerAuthId,
+        },
+      },
+    },
+  });
+
+  const result = await prisma.timeSheetDayEntry.update({
+    where: {
+      id: timeSheetDay.id,
+    },
+    data: {
+      status,
+    },
+  });
+
+  return result;
+};
+
+const approveAllTimeSheetDays = async (
+  employerAuthId: string,
+  timeSheetId: string
+) => {
+  await prisma.timeSheet.findFirstOrThrow({
     where: {
       id: timeSheetId,
       job: {
@@ -1222,12 +1258,30 @@ const changeTimeSheetStatus = async (
     },
   });
 
-  const result = await prisma.timeSheet.update({
+  await prisma.timeSheetDayEntry.updateMany({
     where: {
-      id: timeSheet.id,
+      timeSheetId,
     },
     data: {
-      status,
+      status: TimeSheetStatus.APPROVED,
+    },
+  });
+
+  const result = await prisma.timeSheet.findUniqueOrThrow({
+    where: {
+      id: timeSheetId,
+    },
+    include: {
+      workerAuth: {
+        select: {
+          id: true,
+          email: true,
+          profile: true,
+          workerProfile: true,
+        },
+      },
+      job: true,
+      timeSheetDays: true,
     },
   });
 
@@ -1252,5 +1306,7 @@ export const jobServices = {
   changeJobOfferStatus,
   createTimeSheet,
   getTimeSheetByJob,
+  getPendingTimeSheetsForEmployer,
   changeTimeSheetStatus,
+  approveAllTimeSheetDays,
 };

@@ -130,22 +130,27 @@ type WorkingHour {
 }
 
 model TimeSheet {
-  id             String          @id @default(auto()) @map("_id") @db.ObjectId
-  jobId          String          @db.ObjectId
-  workerAuthId   String          @db.ObjectId
-  workerAuth     Auth            @relation(fields: [workerAuthId], references: [id])
-  job            Job             @relation(fields: [jobId], references: [id])
-  week           Int?
-  mondayHours    Int?
-  tuesdayHours   Int?
-  wednesdayHours Int?
-  thursdayHours  Int?
-  fridayHours    Int?
-  saturdayHours  Int?
-  sundayHours    Int?
-  createdAt      DateTime        @default(now())
+  id            String              @id @default(auto()) @map("_id") @db.ObjectId
+  jobId         String              @db.ObjectId
+  workerAuthId  String              @db.ObjectId
+  workerAuth    Auth                @relation(fields: [workerAuthId], references: [id])
+  job           Job                 @relation(fields: [jobId], references: [id])
+  week          Int?
+  createdAt     DateTime            @default(now())
+  timeSheetDays TimeSheetDayEntry[]
 
   @@unique([jobId, workerAuthId])
+}
+
+model TimeSheetDayEntry {
+  id          String          @id @default(auto()) @map("_id") @db.ObjectId
+  timeSheetId String          @db.ObjectId
+  timeSheet   TimeSheet       @relation(fields: [timeSheetId], references: [id])
+  day         TimeSheetDay
+  hours       Int
+  status      TimeSheetStatus @default(PENDING)
+
+  @@unique([timeSheetId, day])
 }
 
 model JobApplication {
@@ -263,6 +268,16 @@ model Notification {
   message String
   seen    Boolean  @default(false)
   sentAt  DateTime @default(now())
+}
+
+enum TimeSheetDay {
+  SUNDAY
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
 }
 
 enum ApplicationStatus {

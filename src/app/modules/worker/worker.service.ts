@@ -126,7 +126,9 @@ const getAll = async (
 
   const latitude = getNumberQuery(query.latitude) || getNumberQuery(query.lat);
   const longitude =
-    getNumberQuery(query.longitude) || getNumberQuery(query.lng);
+    getNumberQuery(query.longitude) ||
+    getNumberQuery(query.long) ||
+    getNumberQuery(query.lng);
   const radius = getNumberQuery(query.radius);
   const trades = getTradeQuery(query.trade) || getTradeQuery(query.grade);
 

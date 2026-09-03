@@ -14,7 +14,11 @@ import {
 
 const router = Router();
 
-router.get("/", authorize(UserRole.WORKER), jobController.getAllForWorker);
+router.get(
+  "/",
+  authorize({ optional: true }, UserRole.WORKER),
+  jobController.getAllForWorker
+);
 
 router.get("/my-jobs", authorize(UserRole.EMPLOYER), jobController.getMyJobs);
 
@@ -32,7 +36,7 @@ router.get(
 
 router.get(
   "/available-map-jobs",
-  authorize(UserRole.WORKER),
+  authorize({ optional: true }, UserRole.WORKER),
   jobController.getAvailableMapJobsForWorker
 );
 
@@ -76,10 +80,22 @@ router.patch(
 );
 
 router.patch(
-  "/timesheets/:id/status",
+  "/timesheet-days/:id/status",
   authorize(UserRole.EMPLOYER),
   validate(updateTimeSheetStatusZod),
   jobController.changeTimeSheetStatus
+);
+
+router.patch(
+  "/timesheets/:id/approve-all",
+  authorize(UserRole.EMPLOYER),
+  jobController.approveAllTimeSheetDays
+);
+
+router.get(
+  "/timesheets/pending",
+  authorize(UserRole.EMPLOYER),
+  jobController.getPendingTimeSheetsForEmployer
 );
 
 router.post("/:id/apply", authorize(UserRole.WORKER), jobController.apply);
