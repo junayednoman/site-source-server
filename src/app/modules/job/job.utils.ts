@@ -70,3 +70,29 @@ export const getTradeQuery = (value: unknown) => {
       Object.values(JobTrade).includes(trade as JobTrade)
     );
 };
+
+export const EMPTY_OBJECT_ID = "000000000000000000000000";
+const DAYS_IN_WEEK = 7;
+
+export const getTimeSheetWeeks = (startDate: Date, endDate: Date) => {
+  const weeks = [];
+  const currentStartDate = new Date(startDate);
+  let week = 1;
+
+  while (currentStartDate <= endDate) {
+    const currentEndDate = new Date(currentStartDate);
+    currentEndDate.setDate(currentEndDate.getDate() + DAYS_IN_WEEK - 1);
+
+    weeks.push({
+      week,
+      label: `week-${week}`,
+      startDate: new Date(currentStartDate),
+      endDate: currentEndDate > endDate ? new Date(endDate) : currentEndDate,
+    });
+
+    currentStartDate.setDate(currentStartDate.getDate() + DAYS_IN_WEEK);
+    week += 1;
+  }
+
+  return weeks;
+};

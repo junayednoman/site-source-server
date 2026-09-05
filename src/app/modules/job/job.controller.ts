@@ -76,7 +76,11 @@ const getActiveJobsForWorker = handleAsyncRequest(
 );
 
 const getSingle = handleAsyncRequest(async (req: TRequest, res: Response) => {
-  const result = await jobServices.getSingle(req.params.id as string);
+  const result = await jobServices.getSingle(
+    req.params.id as string,
+    req.user?.id,
+    req.user?.role
+  );
   sendResponse(res, {
     message: "Job fetched successfully!",
     data: result,

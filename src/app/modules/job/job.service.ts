@@ -18,14 +18,14 @@ import {
   TSendJobOffer,
 } from "./job.validation.js";
 import {
+  EMPTY_OBJECT_ID,
   getDateQuery,
   getDistanceInMiles,
   getNumberQuery,
   getStringQuery,
+  getTimeSheetWeeks,
   getTradeQuery,
 } from "./job.utils.js";
-
-const EMPTY_OBJECT_ID = "000000000000000000000000";
 
 const create = async (employerAuthId: string, payload: TCreateJob) => {
   const result = await prisma.job.create({
@@ -387,6 +387,9 @@ const getAvailableMapJobsForWorker = async (
   const andConditions: Prisma.JobWhereInput[] = [
     {
       status: JobStatus.POSTED,
+      startDate: {
+        gte: new Date(),
+      },
     },
   ];
 
@@ -411,7 +414,9 @@ const getAvailableMapJobsForWorker = async (
   if (startDateFrom || startDateTo) {
     andConditions.push({
       startDate: {
-        ...(startDateFrom ? { gte: startDateFrom } : {}),
+        ...(startDateFrom && startDateFrom > new Date()
+          ? { gte: startDateFrom }
+          : { gte: new Date() }),
         ...(startDateTo ? { lte: startDateTo } : {}),
       },
     });
@@ -593,7 +598,11 @@ const getActiveJobsForWorker = async (
   return { meta, jobs: formattedJobs };
 };
 
-const getSingle = async (jobId: string) => {
+const getSingle = async (
+  jobId: string,
+  authId: string | undefined,
+  role: UserRole | undefined
+) => {
   const job = await prisma.job.findFirstOrThrow({
     where: {
       id: jobId,
@@ -642,7 +651,23 @@ const getSingle = async (jobId: string) => {
     },
   });
 
-  return job;
+  const isApplied =
+    role === UserRole.WORKER && authId
+      ? Boolean(
+          await prisma.jobApplication.count({
+            where: {
+              jobId,
+              authId,
+            },
+          })
+        )
+      : false;
+
+  return {
+    ...job,
+    isApplied,
+    timeSheetWeeks: getTimeSheetWeeks(job.startDate, job.endDate),
+  };
 };
 
 const apply = async (workerAuthId: string, jobId: string) => {

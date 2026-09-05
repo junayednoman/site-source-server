@@ -10,6 +10,7 @@ import { reviewRoutes } from "../modules/review/review.routes.js";
 import { bookmarkRoutes } from "../modules/bookmark/bookmark.routes.js";
 import { chatRoutes } from "../modules/chat/chat.routes.js";
 import { notificationRoutes } from "../modules/notification/notification.routes.js";
+import { adminRoutes } from "../modules/admin/admin.routes.js";
 
 const router = Router();
 
@@ -25,6 +26,7 @@ const routes = [
   { path: "/bookmarks", route: bookmarkRoutes },
   { path: "/chats", route: chatRoutes },
   { path: "/notifications", route: notificationRoutes },
+  { path: "/admin", route: adminRoutes },
 ];
 
 routes.forEach(route => {
