@@ -25,6 +25,8 @@ import {
   getTradeQuery,
 } from "./job.utils.js";
 
+const EMPTY_OBJECT_ID = "000000000000000000000000";
+
 const create = async (employerAuthId: string, payload: TCreateJob) => {
   const result = await prisma.job.create({
     data: {
@@ -271,7 +273,7 @@ const getAllForWorker = async (
       },
       jobBookmarks: {
         where: {
-          authId: workerAuthId || "",
+          authId: workerAuthId || EMPTY_OBJECT_ID,
         },
         select: {
           id: true,
@@ -377,7 +379,7 @@ const getAvailableMapJobsForWorker = async (
     getNumberQuery(query.longitude) ||
     getNumberQuery(query.long) ||
     getNumberQuery(query.lng);
-  const radius = getNumberQuery(query.radius) || 10;
+  const radius = getNumberQuery(query.radius);
   const trades = getTradeQuery(query.trade);
   const startDateFrom = getDateQuery(query.startDateFrom);
   const startDateTo = getDateQuery(query.startDateTo);
@@ -445,7 +447,7 @@ const getAvailableMapJobsForWorker = async (
     );
     if (distance === null) return false;
 
-    return distance <= radius;
+    return distance <= (radius || 10);
   });
 
   const { page, take, skip } = calculatePagination(options);

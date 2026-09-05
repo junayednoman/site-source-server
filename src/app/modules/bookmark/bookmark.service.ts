@@ -1,5 +1,4 @@
 import { UserRole } from "@prisma/client";
-import ApiError from "../../classes/ApiError.js";
 import {
   calculatePagination,
   TPaginationOptions,
@@ -28,17 +27,29 @@ const createJobBookmark = async (
   });
 
   if (existingBookmark) {
-    throw new ApiError(400, "Job already bookmarked!");
+    await prisma.jobBookmark.delete({
+      where: {
+        id: existingBookmark.id,
+      },
+    });
+
+    return {
+      isBookmarked: false,
+      bookmark: null,
+    };
   }
 
-  const result = await prisma.jobBookmark.create({
+  const bookmark = await prisma.jobBookmark.create({
     data: {
       authId,
       jobId: payload.jobId,
     },
   });
 
-  return result;
+  return {
+    isBookmarked: true,
+    bookmark,
+  };
 };
 
 const getJobBookmarks = async (authId: string, options: TPaginationOptions) => {
@@ -101,17 +112,29 @@ const createWorkerBookmark = async (
   });
 
   if (existingBookmark) {
-    throw new ApiError(400, "Worker already bookmarked!");
+    await prisma.workerBookmark.delete({
+      where: {
+        id: existingBookmark.id,
+      },
+    });
+
+    return {
+      isBookmarked: false,
+      bookmark: null,
+    };
   }
 
-  const result = await prisma.workerBookmark.create({
+  const bookmark = await prisma.workerBookmark.create({
     data: {
       authId,
       workerAuthId: payload.workerAuthId,
     },
   });
 
-  return result;
+  return {
+    isBookmarked: true,
+    bookmark,
+  };
 };
 
 const getWorkerBookmarks = async (

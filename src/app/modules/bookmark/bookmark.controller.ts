@@ -14,7 +14,7 @@ const createJobBookmark = handleAsyncRequest(
 
     sendResponse(res, {
       status: 201,
-      message: "Job bookmarked successfully!",
+      message: "Job bookmark updated successfully!",
       data: result,
     });
   }
@@ -44,7 +44,7 @@ const createWorkerBookmark = handleAsyncRequest(
 
     sendResponse(res, {
       status: 201,
-      message: "Worker bookmarked successfully!",
+      message: "Worker bookmark updated successfully!",
       data: result,
     });
   }

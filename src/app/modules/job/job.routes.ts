@@ -119,11 +119,7 @@ router.get(
   jobController.getApplicationsByJob
 );
 
-router.get(
-  "/:id",
-  authorize(UserRole.EMPLOYER, UserRole.WORKER),
-  jobController.getSingle
-);
+router.get("/:id", jobController.getSingle);
 
 router.post(
   "/",
