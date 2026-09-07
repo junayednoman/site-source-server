@@ -6,6 +6,7 @@ import {
 import prisma from "../../utils/prisma.js";
 import { uploadToS3 } from "../../utils/awss3.js";
 import { TCreateSupportTicket } from "./support.validation.js";
+import { Prisma, UserRole } from "@prisma/client";
 
 const create = async (
   senderAuthId: string,
@@ -30,7 +31,20 @@ const create = async (
   return result;
 };
 
-const getAll = async (options: TPaginationOptions) => {
+const getAll = async (
+  options: TPaginationOptions,
+  authId?: string,
+  role?: UserRole
+) => {
+  const isAdmin = role === UserRole.ADMIN;
+
+  const andConditions: Prisma.SupportTicketWhereInput[] = [];
+
+  if (!isAdmin) {
+    andConditions.push({
+      senderAuthId: authId,
+    });
+  }
   const { page, take, skip, sortBy, orderBy } = calculatePagination(options);
 
   const tickets = await prisma.supportTicket.findMany({
@@ -60,7 +74,18 @@ const getAll = async (options: TPaginationOptions) => {
   return { meta, tickets };
 };
 
+const getSingle = async (id: string) => {
+  const result = await prisma.supportTicket.findUnique({
+    where: {
+      id,
+    },
+  });
+
+  return result;
+};
+
 export const supportServices = {
   create,
   getAll,
+  getSingle,
 };

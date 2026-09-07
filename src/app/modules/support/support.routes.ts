@@ -16,6 +16,16 @@ router.post(
   supportController.create
 );
 
-router.get("/", authorize(UserRole.ADMIN), supportController.getAll);
+router.get(
+  "/",
+  authorize(UserRole.ADMIN, UserRole.WORKER, UserRole.EMPLOYER),
+  supportController.getAll
+);
+
+router.get(
+  "/:id",
+  authorize(UserRole.ADMIN, UserRole.WORKER, UserRole.EMPLOYER),
+  supportController.getSingle
+);
 
 export const supportRoutes = router;

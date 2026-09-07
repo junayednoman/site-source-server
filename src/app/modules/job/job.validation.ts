@@ -1,6 +1,7 @@
 import z from "zod";
 import {
   ApplicationStatus,
+  JobCompletionStatus,
   JobMustHave,
   JobOfferStatus,
   JobTrade,
@@ -72,4 +73,8 @@ export type TCreateTimeSheet = z.infer<typeof createTimeSheetZod>;
 
 export const updateTimeSheetStatusZod = z.object({
   status: z.enum([TimeSheetStatus.APPROVED, TimeSheetStatus.REJECTED]),
+});
+
+export const updateJobCompletionStatusZod = z.object({
+  status: z.enum([JobCompletionStatus.COMPLETED, JobCompletionStatus.REJECTED]),
 });

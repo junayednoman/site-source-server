@@ -10,9 +10,23 @@ import {
   updateApplicationStatusZod,
   updateJobOfferStatusZod,
   updateTimeSheetStatusZod,
+  updateJobCompletionStatusZod,
 } from "./job.validation.js";
 
 const router = Router();
+
+router.post(
+  "/completion/:id",
+  authorize(UserRole.WORKER),
+  jobController.sendJobCompletionRequest
+);
+
+router.patch(
+  "/completion/:id",
+  authorize(UserRole.EMPLOYER),
+  validate(updateJobCompletionStatusZod),
+  jobController.updateJobCompletionStatus
+);
 
 router.get(
   "/",

@@ -276,6 +276,31 @@ const approveAllTimeSheetDays = handleAsyncRequest(
   }
 );
 
+const sendJobCompletionRequest = handleAsyncRequest(
+  async (req: TRequest, res: Response) => {
+    const result = await jobServices.sendJobCompletionRequest(
+      req.params.id as string
+    );
+    sendResponse(res, {
+      message: "Job completion request sent successfully!",
+      data: result,
+    });
+  }
+);
+
+const updateJobCompletionStatus = handleAsyncRequest(
+  async (req: TRequest, res: Response) => {
+    const result = await jobServices.updateJobCompletionStatus(
+      req.params.id as string,
+      req.body.status
+    );
+    sendResponse(res, {
+      message: "Job completion status updated successfully!",
+      data: result,
+    });
+  }
+);
+
 export const jobController = {
   create,
   getMyJobs,
@@ -297,4 +322,6 @@ export const jobController = {
   getPendingTimeSheetsForEmployer,
   changeTimeSheetStatus,
   approveAllTimeSheetDays,
+  sendJobCompletionRequest,
+  updateJobCompletionStatus,
 };

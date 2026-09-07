@@ -23,7 +23,11 @@ const create = handleAsyncRequest(async (req: TRequest, res: Response) => {
 
 const getAll = handleAsyncRequest(async (req: TRequest, res: Response) => {
   const options = pick(req.query, ["page", "limit", "sortBy", "orderBy"]);
-  const result = await supportServices.getAll(options);
+  const result = await supportServices.getAll(
+    options,
+    req.user?.id,
+    req.user?.role
+  );
 
   sendResponse(res, {
     message: "Support tickets fetched successfully!",
@@ -31,7 +35,17 @@ const getAll = handleAsyncRequest(async (req: TRequest, res: Response) => {
   });
 });
 
+const getSingle = handleAsyncRequest(async (req: TRequest, res: Response) => {
+  const result = await supportServices.getSingle(req.params.id as string);
+
+  sendResponse(res, {
+    message: "Support ticket fetched successfully!",
+    data: result,
+  });
+});
+
 export const supportController = {
   create,
   getAll,
+  getSingle,
 };

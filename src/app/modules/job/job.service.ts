@@ -5,6 +5,7 @@ import {
   Prisma,
   TimeSheetStatus,
   UserRole,
+  JobCompletionStatus,
 } from "@prisma/client";
 import ApiError from "../../classes/ApiError.js";
 import prisma from "../../utils/prisma.js";
@@ -58,15 +59,21 @@ const getMyJobs = async (
     },
   ];
 
-  if (query.status === "active") {
+  const status = getStringQuery(query.status)?.toUpperCase();
+
+  if (status === JobStatus.POSTED) {
     andConditions.push({
-      status: {
-        in: [JobStatus.POSTED, JobStatus.ACTIVE],
-      },
+      status: JobStatus.POSTED,
     });
   }
 
-  if (query.status === "completed") {
+  if (status === JobStatus.ACTIVE) {
+    andConditions.push({
+      status: JobStatus.ACTIVE,
+    });
+  }
+
+  if (status === JobStatus.COMPLETED) {
     andConditions.push({
       status: {
         in: [JobStatus.COMPLETED, JobStatus.CANCELLED],
@@ -135,6 +142,7 @@ const getMyJobs = async (
     title: job.title,
     location: job.location,
     workersNeeded: job.workersNeeded,
+    hourlyRate: job.hourlyRate,
     startDate: job.startDate,
     endDate: job.endDate,
     status: job.status,
@@ -639,6 +647,7 @@ const getSingle = async (
           },
         },
       },
+      jobCompletion: true,
       jobOffers: true,
       timeSheets: true,
       conversations: {
@@ -1176,23 +1185,33 @@ const getTimeSheetByJob = async (
     };
   }
 
-  const timeSheet = await prisma.timeSheet.findFirstOrThrow({
+  const timeSheets = await prisma.timeSheet.findMany({
     where: whereConditions,
-    include: {
-      workerAuth: {
+    select: {
+      id: true,
+      week: true,
+      timeSheetDays: {
         select: {
-          id: true,
-          email: true,
-          profile: true,
-          workerProfile: true,
+          status: true,
         },
       },
-      job: true,
-      timeSheetDays: true,
+    },
+    orderBy: {
+      week: "asc",
     },
   });
 
-  return timeSheet;
+  const formattedTimeSheets = timeSheets.map(timeSheet => ({
+    id: timeSheet.id,
+    week: timeSheet.week,
+    status: timeSheet.timeSheetDays.every(
+      timeSheetDay => timeSheetDay.status === TimeSheetStatus.APPROVED
+    )
+      ? TimeSheetStatus.APPROVED
+      : TimeSheetStatus.PENDING,
+  }));
+
+  return formattedTimeSheets;
 };
 
 const getPendingTimeSheetsForEmployer = async (
@@ -1315,6 +1334,64 @@ const approveAllTimeSheetDays = async (
   return result;
 };
 
+const sendJobCompletionRequest = async (jobId: string) => {
+  const jobCompletion = await prisma.jobCompletion.findFirstOrThrow({
+    where: {
+      id: jobId,
+    },
+  });
+
+  if (jobCompletion) {
+    throw new ApiError(400, "Job completion request already sent!");
+  }
+
+  const result = await prisma.jobCompletion.create({
+    data: {
+      jobId,
+    },
+  });
+
+  return result;
+};
+
+const updateJobCompletionStatus = async (
+  jobId: string,
+  status: JobCompletionStatus
+) => {
+  if (status === JobCompletionStatus.COMPLETED) {
+    const result = await prisma.$transaction(async tnx => {
+      const res = await tnx.job.update({
+        where: {
+          id: jobId,
+        },
+        data: {
+          status,
+        },
+      });
+
+      await tnx.jobCompletion.delete({
+        where: {
+          id: jobId,
+        },
+      });
+
+      return res;
+    });
+
+    return result;
+  }
+  const result = await prisma.jobCompletion.update({
+    where: {
+      id: jobId,
+    },
+    data: {
+      status,
+    },
+  });
+
+  return result;
+};
+
 export const jobServices = {
   create,
   getMyJobs,
@@ -1336,4 +1413,6 @@ export const jobServices = {
   getPendingTimeSheetsForEmployer,
   changeTimeSheetStatus,
   approveAllTimeSheetDays,
+  sendJobCompletionRequest,
+  updateJobCompletionStatus,
 };
