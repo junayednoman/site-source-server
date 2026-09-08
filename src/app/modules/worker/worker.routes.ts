@@ -10,7 +10,11 @@ const router = Router();
 
 router.get("/", authorize(UserRole.EMPLOYER), workerController.getAll);
 router.get("/profile", authorize(), workerController.getProfile);
-router.get("/details", authorize(UserRole.WORKER), workerController.getDetails);
+router.get(
+  "/details/:id",
+  authorize(UserRole.WORKER, UserRole.EMPLOYER),
+  workerController.getDetails
+);
 router.patch(
   "/profile",
   authorize(UserRole.WORKER),

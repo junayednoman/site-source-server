@@ -647,7 +647,11 @@ const getSingle = async (
           },
         },
       },
-      jobCompletion: true,
+      jobCompletion: {
+        select: {
+          status: true,
+        },
+      },
       jobOffers: true,
       timeSheets: true,
       conversations: {
@@ -1335,7 +1339,7 @@ const approveAllTimeSheetDays = async (
 };
 
 const sendJobCompletionRequest = async (jobId: string) => {
-  const jobCompletion = await prisma.jobCompletion.findFirstOrThrow({
+  const jobCompletion = await prisma.jobCompletion.findFirst({
     where: {
       id: jobId,
     },
@@ -1371,7 +1375,7 @@ const updateJobCompletionStatus = async (
 
       await tnx.jobCompletion.delete({
         where: {
-          id: jobId,
+          jobId,
         },
       });
 
@@ -1382,7 +1386,7 @@ const updateJobCompletionStatus = async (
   }
   const result = await prisma.jobCompletion.update({
     where: {
-      id: jobId,
+      jobId,
     },
     data: {
       status,
