@@ -157,6 +157,17 @@ const getAll = async (
     });
   }
 
+  if (query.searchTerm) {
+    andConditions.push({
+      profile: {
+        name: {
+          contains: getStringQuery(query.searchTerm),
+          mode: "insensitive",
+        },
+      },
+    });
+  }
+
   const whereConditions: Prisma.AuthWhereInput = {
     AND: andConditions,
   };
