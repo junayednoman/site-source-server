@@ -111,11 +111,11 @@ model Job {
   jobApplications JobApplication[]
   jobOffers       JobOffer[]
   timeSheets      TimeSheet[]
-  conversations   Conversation[]
   reviews         Review[]
   jobBookmarks    JobBookmark[]
   createdAt       DateTime         @default(now())
   jobCompletion   JobCompletion?
+  conversation    Conversation?
 }
 
 type WorkingHour {
@@ -184,7 +184,7 @@ model JobCompletion {
 
 model Conversation {
   id             String    @id @default(auto()) @map("_id") @db.ObjectId
-  jobId          String    @db.ObjectId
+  jobId          String    @unique @db.ObjectId
   job            Job       @relation(fields: [jobId], references: [id])
   employerAuthId String    @db.ObjectId
   employerAuth   Auth      @relation(name: "ConversationEmployer", fields: [employerAuthId], references: [id])

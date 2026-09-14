@@ -659,7 +659,11 @@ const getSingle = async (
           messages: true,
         },
       },
-      reviews: true,
+      reviews: {
+        where: {
+          giverAuthId: authId,
+        },
+      },
       jobBookmarks: true,
     },
   });
@@ -676,10 +680,16 @@ const getSingle = async (
         )
       : false;
 
+  const isReviewed =
+    authId && job.reviews.find(review => review.giverAuthId === authId)
+      ? true
+      : false;
+
   return {
     ...job,
     isApplied,
     timeSheetWeeks: getTimeSheetWeeks(job.startDate, job.endDate),
+    isReviewed,
   };
 };
 

@@ -119,15 +119,22 @@ const getAllByUser = async (authId: string, options: TPaginationOptions) => {
       rating: true,
       feedback: true,
       givenAt: true,
-      job: true,
+      job: {
+        select: {
+          title: true,
+        },
+      },
       giverAuth: {
         select: {
           id: true,
           email: true,
           role: true,
-          profile: true,
-          workerProfile: true,
-          employerProfile: true,
+          profile: {
+            select: {
+              name: true,
+              image: true,
+            },
+          },
         },
       },
     },
