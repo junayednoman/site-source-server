@@ -8,7 +8,7 @@ import { profileUpdateZod, updateUserStatusZod } from "./admin.validation.js";
 
 const router = Router();
 
-router.get("/", authorize(UserRole.ADMIN), adminController.getDashboard);
+router.get("/stats", authorize(UserRole.ADMIN), adminController.getDashboard);
 
 router.get("/profile", authorize(UserRole.ADMIN), adminController.getProfile);
 

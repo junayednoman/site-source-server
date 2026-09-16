@@ -5,13 +5,16 @@ import {
   UserRole,
   UserStatus,
 } from "@prisma/client";
+import axios from "axios";
 import crypto from "crypto";
 import ApiError from "../../classes/ApiError.js";
 import prisma from "../../utils/prisma.js";
 import { sendEmail } from "../../utils/sendEmail.js";
 import { deleteFromS3, uploadToS3 } from "../../utils/awss3.js";
 import {
+  TAppleLoginInput,
   TChangePasswordInput,
+  TGoogleLoginInput,
   TLoginInput,
   TResetPasswordInput,
   TSignup,
@@ -27,6 +30,138 @@ import {
 } from "../../utils/paginationCalculation.js";
 import generateOTP from "../../utils/generateOTP.js";
 import { TFile } from "../../interface/file.interface.js";
+
+type TSocialLoginPayload = (TGoogleLoginInput | TAppleLoginInput) & {
+  email: string;
+};
+
+type TSocialTokenPayload = {
+  email?: string;
+  email_verified?: boolean | string;
+  name?: string;
+  picture?: string;
+};
+
+type TJwksResponse = {
+  keys: (crypto.webcrypto.JsonWebKey & { kid: string })[];
+};
+
+const getLoginProviderLabel = (provider: LoginProvider) =>
+  provider.charAt(0) + provider.slice(1).toLowerCase();
+
+const generateAuthTokens = (auth: {
+  id: string;
+  email: string;
+  role: UserRole;
+}) => {
+  const jwtPayload = {
+    email: auth.email,
+    role: auth.role,
+    id: auth.id,
+  };
+
+  const accessToken = jsonwebtoken.sign(
+    jwtPayload,
+    config.jwt.accessSecret as Secret,
+    {
+      expiresIn: config.jwt.accessExpiration as any,
+    }
+  );
+
+  const refreshToken = jsonwebtoken.sign(
+    jwtPayload,
+    config.jwt.refreshSecret as Secret,
+    {
+      expiresIn: config.jwt.refreshExpiration as any,
+    }
+  );
+
+  return { accessToken, refreshToken };
+};
+
+const checkLoginProvider = (
+  loginProvider: LoginProvider,
+  requestedProvider: LoginProvider
+) => {
+  if (loginProvider !== requestedProvider) {
+    const providerName = getLoginProviderLabel(loginProvider);
+    throw new ApiError(
+      400,
+      `This email is registered with ${providerName} login. Please use ${providerName} login.`
+    );
+  }
+};
+
+const getClientIds = (clientId?: string) =>
+  clientId
+    ?.split(",")
+    .map(id => id.trim())
+    .filter(Boolean) || [];
+
+const verifySocialIdToken = async ({
+  idToken,
+  clientIds,
+  issuer,
+  jwksUrl,
+  providerName,
+}: {
+  idToken: string;
+  clientIds: string[];
+  issuer: string | [string, ...string[]];
+  jwksUrl: string;
+  providerName: string;
+}) => {
+  if (clientIds.length === 0) {
+    throw new ApiError(500, `${providerName} client id is not configured!`);
+  }
+
+  const decodedToken = jwt.decode(idToken, { complete: true });
+  if (
+    !decodedToken ||
+    typeof decodedToken === "string" ||
+    decodedToken.header.alg !== "RS256" ||
+    !decodedToken.header.kid
+  ) {
+    throw new ApiError(401, `Invalid ${providerName} token!`);
+  }
+
+  const { data } = await axios.get<TJwksResponse>(jwksUrl);
+  const jwk = data.keys.find(key => key.kid === decodedToken.header.kid);
+  if (!jwk) throw new ApiError(401, `Invalid ${providerName} token!`);
+
+  try {
+    const publicKey = crypto
+      .createPublicKey({
+        key: jwk,
+        format: "jwk",
+      })
+      .export({ format: "pem", type: "spki" });
+
+    const verifiedPayload = jwt.verify(idToken, publicKey, {
+      algorithms: ["RS256"],
+      issuer,
+      audience: clientIds as [string, ...string[]],
+    }) as TSocialTokenPayload;
+
+    if (!verifiedPayload.email) {
+      throw new ApiError(401, `${providerName} token does not include email!`);
+    }
+
+    const emailVerified = verifiedPayload.email_verified;
+    if (
+      emailVerified !== undefined &&
+      emailVerified !== true &&
+      emailVerified !== "true"
+    ) {
+      throw new ApiError(401, `${providerName} email is not verified!`);
+    }
+
+    return verifiedPayload;
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    throw new ApiError(401, `Invalid ${providerName} token!`);
+  }
+};
 
 const signUp = async (payload: TSignup, file?: TFile) => {
   const existingUser = await prisma.auth.findUnique({
@@ -182,40 +317,18 @@ const login = async (payload: TLoginInput) => {
     throw new ApiError(400, "Invalid email or password!");
   }
 
+  checkLoginProvider(auth.loginProvider, LoginProvider.EMAIL);
+
   if (auth.status === UserStatus.PENDING)
     throw new ApiError(400, "Please verify your account!");
 
   if (auth.status === UserStatus.BLOCKED)
     throw new ApiError(400, "Your account is blocked!");
 
-  if (auth.loginProvider === LoginProvider.GOOGLE)
-    throw new ApiError(400, "Your account was created using Google!");
-
   const hasMatched = await bcrypt.compare(payload.password, auth.password);
   if (!hasMatched) throw new ApiError(400, "Invalid email or password!");
 
-  // prepare tokens
-  const jwtPayload = {
-    email: auth.email,
-    role: auth.role,
-    id: auth.id,
-  };
-
-  const accessToken = jsonwebtoken.sign(
-    jwtPayload,
-    config.jwt.accessSecret as Secret,
-    {
-      expiresIn: config.jwt.accessExpiration as any,
-    }
-  );
-
-  const refreshToken = jsonwebtoken.sign(
-    jwtPayload,
-    config.jwt.refreshSecret as Secret,
-    {
-      expiresIn: config.jwt.refreshExpiration as any,
-    }
-  );
+  const { accessToken, refreshToken } = generateAuthTokens(auth);
 
   // update fcmToken if any
   if (payload.fcmToken) {
@@ -233,6 +346,146 @@ const login = async (payload: TLoginInput) => {
     accessToken,
     refreshToken,
   };
+};
+
+const socialLogin = async (
+  payload: TSocialLoginPayload,
+  loginProvider: LoginProvider
+) => {
+  const existingAuth = await prisma.auth.findUnique({
+    where: {
+      email: payload.email,
+    },
+    include: {
+      profile: true,
+    },
+  });
+
+  if (existingAuth) {
+    checkLoginProvider(existingAuth.loginProvider, loginProvider);
+
+    if (existingAuth.status === UserStatus.PENDING)
+      throw new ApiError(400, "Please verify your account!");
+
+    if (existingAuth.status === UserStatus.BLOCKED)
+      throw new ApiError(400, "Your account is blocked!");
+
+    if (existingAuth.status === UserStatus.DELETED)
+      throw new ApiError(400, "Your account is deleted!");
+
+    await prisma.$transaction(async tn => {
+      if (payload.fcmToken) {
+        await tn.auth.update({
+          where: {
+            id: existingAuth.id,
+          },
+          data: {
+            fcmToken: payload.fcmToken,
+          },
+        });
+      }
+
+      if (payload.name || payload.image) {
+        await tn.profile.update({
+          where: {
+            authId: existingAuth.id,
+          },
+          data: {
+            ...(payload.name ? { name: payload.name } : {}),
+            ...(payload.image ? { image: payload.image } : {}),
+          },
+        });
+      }
+    });
+
+    return generateAuthTokens(existingAuth);
+  }
+
+  const password = await bcrypt.hash(crypto.randomUUID(), 10);
+  const fallbackName = payload.name || payload.email.split("@")[0] || "User";
+
+  const auth = await prisma.$transaction(async tn => {
+    const newAuth = await tn.auth.create({
+      data: {
+        email: payload.email,
+        password,
+        role: payload.role as UserRole,
+        status: UserStatus.ACTIVE,
+        loginProvider,
+        ...(payload.fcmToken ? { fcmToken: payload.fcmToken } : {}),
+      },
+    });
+
+    await tn.profile.create({
+      data: {
+        authId: newAuth.id,
+        name: fallbackName,
+        ...(payload.image ? { image: payload.image } : {}),
+      },
+    });
+
+    if (payload.role === UserRole.WORKER) {
+      await tn.workerProfile.create({
+        data: {
+          authId: newAuth.id,
+          trades: [],
+          certificates: [],
+        },
+      });
+    }
+
+    if (payload.role === UserRole.EMPLOYER) {
+      await tn.employerProfile.create({
+        data: {
+          authId: newAuth.id,
+        },
+      });
+    }
+
+    return newAuth;
+  });
+
+  return generateAuthTokens(auth);
+};
+
+const googleLogin = async (payload: TGoogleLoginInput) => {
+  const verifiedPayload = await verifySocialIdToken({
+    idToken: payload.idToken,
+    clientIds: getClientIds(config.socialAuth.googleClientId),
+    issuer: ["accounts.google.com", "https://accounts.google.com"],
+    jwksUrl: "https://www.googleapis.com/oauth2/v3/certs",
+    providerName: "Google",
+  });
+
+  return socialLogin(
+    {
+      ...payload,
+      email: verifiedPayload.email as string,
+      name: payload.name || verifiedPayload.name,
+      image: payload.image || verifiedPayload.picture,
+    },
+    LoginProvider.GOOGLE
+  );
+};
+
+const appleLogin = async (payload: TAppleLoginInput) => {
+  const verifiedPayload = await verifySocialIdToken({
+    idToken: payload.idToken,
+    clientIds: getClientIds(config.socialAuth.appleClientId),
+    issuer: "https://appleid.apple.com",
+    jwksUrl: "https://appleid.apple.com/auth/keys",
+    providerName: "Apple",
+  });
+
+  return socialLogin(
+    {
+      ...payload,
+      email: verifiedPayload.email as string,
+      name: payload.name || verifiedPayload.name,
+      image: payload.image || verifiedPayload.picture,
+    },
+    LoginProvider.APPLE
+  );
 };
 
 const getAll = async (
@@ -495,6 +748,8 @@ const refreshToken = async (token: string) => {
 export const authServices = {
   signUp,
   login,
+  googleLogin,
+  appleLogin,
   getSingle,
   getAll,
   refreshToken,

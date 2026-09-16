@@ -634,29 +634,9 @@ const getSingle = async (
           workerProfile: true,
         },
       },
-      jobApplications: {
-        include: {
-          auth: {
-            select: {
-              id: true,
-              email: true,
-              role: true,
-              profile: true,
-              workerProfile: true,
-            },
-          },
-        },
-      },
       jobCompletion: {
         select: {
           status: true,
-        },
-      },
-      jobOffers: true,
-      timeSheets: true,
-      conversations: {
-        include: {
-          messages: true,
         },
       },
       reviews: {

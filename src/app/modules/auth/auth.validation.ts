@@ -51,14 +51,24 @@ export const loginZodSchema = z.object({
 export type TLoginInput = z.infer<typeof loginZodSchema>;
 
 export const googleLoginSchema = z.object({
-  email: emailZod,
-  name: z.string(),
-  image: z.string(),
-  fcmToken: z.string(),
-  role: z.enum(["WORKER", " EMPLOYER"]),
+  idToken: z.string().min(1, "Google idToken is required"),
+  name: z.string().trim().optional(),
+  image: z.string().optional().nullable(),
+  fcmToken: z.string().optional(),
+  role: z.enum(["WORKER", "EMPLOYER"]),
 });
 
 export type TGoogleLoginInput = z.infer<typeof googleLoginSchema>;
+
+export const appleLoginSchema = z.object({
+  idToken: z.string().min(1, "Apple idToken is required"),
+  name: z.string().trim().optional(),
+  image: z.string().optional().nullable(),
+  fcmToken: z.string().optional(),
+  role: z.enum(["WORKER", "EMPLOYER"]),
+});
+
+export type TAppleLoginInput = z.infer<typeof appleLoginSchema>;
 
 export const resetPasswordZod = z.object({
   email: emailZod,

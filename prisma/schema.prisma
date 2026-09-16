@@ -348,6 +348,7 @@ enum UserStatus {
 enum LoginProvider {
   FACEBOOK
   GOOGLE
+  APPLE
   EMAIL
 }
 

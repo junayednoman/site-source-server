@@ -6,6 +6,19 @@ import config from "../../config/index.js";
 import { TRequest } from "../../interface/global.interface.js";
 import pick from "../../utils/pick.js";
 
+const setRefreshTokenCookie = (res: Response, refreshToken: string) => {
+  const day = 24 * 60 * 60 * 1000;
+  const cookieOptions: any = {
+    httpOnly: true,
+    secure: config.env === "production", // Use secure in production
+    maxAge: 45 * day,
+  };
+
+  if (config.env === "production") cookieOptions.sameSite = "none";
+
+  res.cookie("player-centralRefreshToken", refreshToken, cookieOptions);
+};
+
 const signup = handleAsyncRequest(async (req: TRequest, res) => {
   const result = await authServices.signUp(req.body, req.file);
 
@@ -19,18 +32,32 @@ const signup = handleAsyncRequest(async (req: TRequest, res) => {
 const login = handleAsyncRequest(async (req: Request, res: Response) => {
   const result = await authServices.login(req.body);
 
-  // set up cookie
-  const day = 24 * 60 * 60 * 1000;
   const { refreshToken, accessToken } = result;
-  const cookieOptions: any = {
-    httpOnly: true,
-    secure: config.env === "production", // Use secure in production
-    maxAge: 45 * day,
-  };
+  setRefreshTokenCookie(res, refreshToken);
 
-  if (config.env === "production") cookieOptions.sameSite = "none";
+  sendResponse(res, {
+    message: "Logged in successfully!",
+    data: { accessToken },
+  });
+});
 
-  res.cookie("player-centralRefreshToken", refreshToken, cookieOptions);
+const googleLogin = handleAsyncRequest(async (req: Request, res: Response) => {
+  const result = await authServices.googleLogin(req.body);
+  const { refreshToken, accessToken } = result;
+
+  setRefreshTokenCookie(res, refreshToken);
+
+  sendResponse(res, {
+    message: "Logged in successfully!",
+    data: { accessToken },
+  });
+});
+
+const appleLogin = handleAsyncRequest(async (req: Request, res: Response) => {
+  const result = await authServices.appleLogin(req.body);
+  const { refreshToken, accessToken } = result;
+
+  setRefreshTokenCookie(res, refreshToken);
 
   sendResponse(res, {
     message: "Logged in successfully!",
@@ -113,6 +140,8 @@ const logout = handleAsyncRequest(async (_req: Request, res: Response) => {
 export const authController = {
   signup,
   login,
+  googleLogin,
+  appleLogin,
   getSingle,
   getAll,
   resetPassword,

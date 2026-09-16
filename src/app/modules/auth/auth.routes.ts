@@ -1,8 +1,10 @@
 import { Router } from "express";
 import validate from "../../middlewares/validate.js";
 import {
+  appleLoginSchema,
   changeAccountStatusZod,
   changePasswordZod,
+  googleLoginSchema,
   loginZodSchema,
   resetPasswordZod,
   signupZod,
@@ -24,6 +26,16 @@ router.post(
   authController.signup
 );
 router.post("/login", validate(loginZodSchema), authController.login);
+router.post(
+  "/google-login",
+  validate(googleLoginSchema),
+  authController.googleLogin
+);
+router.post(
+  "/apple-login",
+  validate(appleLoginSchema),
+  authController.appleLogin
+);
 
 router.post(
   "/reset-password",

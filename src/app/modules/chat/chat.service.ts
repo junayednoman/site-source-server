@@ -59,17 +59,27 @@ const getChatList = async (authId: string, options: TPaginationOptions) => {
         select: {
           id: true,
           title: true,
-          location: true,
-          status: true,
-          startDate: true,
-          endDate: true,
         },
       },
       employerAuth: {
-        select: userSelect,
+        select: {
+          profile: {
+            select: {
+              name: true,
+              image: true,
+            },
+          },
+        },
       },
       workerAuth: {
-        select: userSelect,
+        select: {
+          profile: {
+            select: {
+              name: true,
+              image: true,
+            },
+          },
+        },
       },
       messages: {
         orderBy: {

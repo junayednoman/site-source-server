@@ -19,6 +19,10 @@ export default {
     email: process.env.ADMIN_EMAIL,
     password: process.env.ADMIN_PASSWORD,
   },
+  socialAuth: {
+    googleClientId: process.env.GOOGLE_CLIENT_ID,
+    appleClientId: process.env.APPLE_CLIENT_ID,
+  },
   aws: {
     accessKeyId: process.env.S3_BUCKET_ACCESS_KEY,
     secretAccessKey: process.env.S3_BUCKET_SECRET_ACCESS_KEY,
