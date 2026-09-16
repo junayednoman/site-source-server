@@ -7,6 +7,7 @@ import {
 } from "../../utils/paginationCalculation.js";
 import { emitToUser } from "../../socket/socket.js";
 import { TSendMessage } from "./chat.validation.js";
+import { sendNotification } from "../notification/notification.utils.js";
 
 const userSelect = {
   id: true,
@@ -39,6 +40,14 @@ const getAccessibleConversation = async (
     where: {
       id: conversationId,
       OR: [{ employerAuthId: authId }, { workerAuthId: authId }],
+    },
+    include: {
+      job: {
+        select: {
+          id: true,
+          title: true,
+        },
+      },
     },
   });
 
@@ -207,6 +216,18 @@ const sendMessage = async (authId: string, payload: TSendMessage) => {
 
   emitToUser(receiverAuthId, "message:received", message);
   emitToUser(authId, "message:sent", message);
+
+  await sendNotification({
+    authId: receiverAuthId,
+    title: "New message",
+    message: `You received a new message about ${conversation.job.title}.`,
+    data: {
+      url: `/screens/chats/${conversation.id}`,
+      conversationId: conversation.id,
+      jobId: conversation.jobId,
+      messageId: message.id,
+    },
+  });
 
   return message;
 };

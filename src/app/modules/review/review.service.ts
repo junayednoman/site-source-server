@@ -6,6 +6,7 @@ import {
 } from "../../utils/paginationCalculation.js";
 import prisma from "../../utils/prisma.js";
 import { TCreateReview } from "./review.validation.js";
+import { sendNotification } from "../notification/notification.utils.js";
 
 const create = async (
   giverAuthId: string,
@@ -55,6 +56,17 @@ const create = async (
       receiverAuthId,
       rating: payload.rating,
       feedback: payload.feedback,
+    },
+  });
+
+  await sendNotification({
+    authId: receiverAuthId,
+    title: "New review",
+    message: `You received a new review for ${job.title}.`,
+    data: {
+      url: `/reviews/${result.id}`,
+      jobId: payload.jobId,
+      reviewId: result.id,
     },
   });
 

@@ -119,3 +119,5 @@ export const emitToUser = (
     io?.to(socketId).emit(eventName, payload);
   });
 };
+
+export const isUserOnline = (authId: string) => onlineUsers.has(authId);

@@ -27,6 +27,7 @@ import {
   getTimeSheetWeeks,
   getTradeQuery,
 } from "./job.utils.js";
+import { sendNotification } from "../notification/notification.utils.js";
 
 const create = async (employerAuthId: string, payload: TCreateJob) => {
   const result = await prisma.job.create({
@@ -707,6 +708,17 @@ const apply = async (workerAuthId: string, jobId: string) => {
     },
   });
 
+  await sendNotification({
+    authId: job.employerAuthId,
+    title: "New job application",
+    message: `A worker applied for ${job.title}.`,
+    data: {
+      url: `/jobs/${job.id}/applications`,
+      jobId: job.id,
+      applicationId: result.id,
+    },
+  });
+
   return result;
 };
 
@@ -833,6 +845,17 @@ const changeApplicationStatus = async (
       },
     });
 
+    await sendNotification({
+      authId: application.authId,
+      title: "Application rejected",
+      message: `Your application for ${application.job.title} was rejected.`,
+      data: {
+        url: `/jobs/${application.jobId}`,
+        jobId: application.jobId,
+        applicationId,
+      },
+    });
+
     return result;
   }
 
@@ -887,11 +910,22 @@ const changeApplicationStatus = async (
     return acceptedApplication;
   });
 
+  await sendNotification({
+    authId: application.authId,
+    title: "Application accepted",
+    message: `Your application for ${application.job.title} was accepted.`,
+    data: {
+      url: `/jobs/${application.jobId}`,
+      jobId: application.jobId,
+      applicationId,
+    },
+  });
+
   return result;
 };
 
 const sendOffer = async (employerAuthId: string, payload: TSendJobOffer) => {
-  await prisma.job.findFirstOrThrow({
+  const job = await prisma.job.findFirstOrThrow({
     where: {
       id: payload.jobId,
       employerAuthId,
@@ -920,6 +954,17 @@ const sendOffer = async (employerAuthId: string, payload: TSendJobOffer) => {
     data: {
       jobId: payload.jobId,
       workerAuthId: payload.workerAuthId,
+    },
+  });
+
+  await sendNotification({
+    authId: payload.workerAuthId,
+    title: "New job offer",
+    message: `You received a job offer for ${job.title}.`,
+    data: {
+      url: `/jobs/${payload.jobId}/offers/${result.id}`,
+      jobId: payload.jobId,
+      offerId: result.id,
     },
   });
 
@@ -1061,6 +1106,17 @@ const changeJobOfferStatus = async (
       },
     });
 
+    await sendNotification({
+      authId: offer.job.employerAuthId,
+      title: "Job offer rejected",
+      message: `Your job offer for ${offer.job.title} was rejected.`,
+      data: {
+        url: `/jobs/${offer.jobId}/offers/${offerId}`,
+        jobId: offer.jobId,
+        offerId,
+      },
+    });
+
     return result;
   }
 
@@ -1112,6 +1168,17 @@ const changeJobOfferStatus = async (
     return acceptedOffer;
   });
 
+  await sendNotification({
+    authId: offer.job.employerAuthId,
+    title: "Job offer accepted",
+    message: `Your job offer for ${offer.job.title} was accepted.`,
+    data: {
+      url: `/jobs/${offer.jobId}/offers/${offerId}`,
+      jobId: offer.jobId,
+      offerId,
+    },
+  });
+
   return result;
 };
 
@@ -1120,7 +1187,7 @@ const createTimeSheet = async (
   jobId: string,
   payload: TCreateTimeSheet
 ) => {
-  await prisma.job.findFirstOrThrow({
+  const job = await prisma.job.findFirstOrThrow({
     where: {
       id: jobId,
       workerAuthId,
@@ -1154,6 +1221,17 @@ const createTimeSheet = async (
     },
     include: {
       timeSheetDays: true,
+    },
+  });
+
+  await sendNotification({
+    authId: job.employerAuthId,
+    title: "Timesheet submitted",
+    message: `A timesheet was submitted for ${job.title}.`,
+    data: {
+      url: `/jobs/${jobId}/timesheets/${result.id}`,
+      jobId,
+      timeSheetId: result.id,
     },
   });
 
@@ -1271,6 +1349,13 @@ const changeTimeSheetStatus = async (
         },
       },
     },
+    include: {
+      timeSheet: {
+        include: {
+          job: true,
+        },
+      },
+    },
   });
 
   const result = await prisma.timeSheetDayEntry.update({
@@ -1279,6 +1364,21 @@ const changeTimeSheetStatus = async (
     },
     data: {
       status,
+    },
+  });
+
+  await sendNotification({
+    authId: timeSheetDay.timeSheet.workerAuthId,
+    title:
+      status === TimeSheetStatus.APPROVED
+        ? "Timesheet day approved"
+        : "Timesheet day rejected",
+    message: `Your timesheet day for ${timeSheetDay.timeSheet.job.title} was ${status.toLowerCase()}.`,
+    data: {
+      url: `/jobs/${timeSheetDay.timeSheet.jobId}/timesheets/${timeSheetDay.timeSheetId}`,
+      jobId: timeSheetDay.timeSheet.jobId,
+      timeSheetId: timeSheetDay.timeSheetId,
+      timeSheetDayId,
     },
   });
 
@@ -1325,10 +1425,27 @@ const approveAllTimeSheetDays = async (
     },
   });
 
+  await sendNotification({
+    authId: result.workerAuthId,
+    title: "Timesheet approved",
+    message: `All timesheet days for ${result.job.title} were approved.`,
+    data: {
+      url: `/jobs/${result.jobId}/timesheets/${result.id}`,
+      jobId: result.jobId,
+      timeSheetId: result.id,
+    },
+  });
+
   return result;
 };
 
 const sendJobCompletionRequest = async (jobId: string) => {
+  const job = await prisma.job.findUniqueOrThrow({
+    where: {
+      id: jobId,
+    },
+  });
+
   const jobCompletion = await prisma.jobCompletion.findFirst({
     where: {
       id: jobId,
@@ -1342,6 +1459,17 @@ const sendJobCompletionRequest = async (jobId: string) => {
   const result = await prisma.jobCompletion.create({
     data: {
       jobId,
+    },
+  });
+
+  await sendNotification({
+    authId: job.employerAuthId,
+    title: "Job completion requested",
+    message: `Completion was requested for ${job.title}.`,
+    data: {
+      url: `/jobs/${jobId}/completion`,
+      jobId,
+      completionRequestId: result.id,
     },
   });
 
@@ -1372,6 +1500,18 @@ const updateJobCompletionStatus = async (
       return res;
     });
 
+    if (result.workerAuthId) {
+      await sendNotification({
+        authId: result.workerAuthId,
+        title: "Job completed",
+        message: `${result.title} was marked as completed.`,
+        data: {
+          url: `/jobs/${result.id}`,
+          jobId: result.id,
+        },
+      });
+    }
+
     return result;
   }
   const result = await prisma.jobCompletion.update({
@@ -1382,6 +1522,25 @@ const updateJobCompletionStatus = async (
       status,
     },
   });
+
+  const job = await prisma.job.findUniqueOrThrow({
+    where: {
+      id: jobId,
+    },
+  });
+
+  if (job.workerAuthId) {
+    await sendNotification({
+      authId: job.workerAuthId,
+      title: "Job completion rejected",
+      message: `Completion request for ${job.title} was rejected.`,
+      data: {
+        url: `/jobs/${jobId}/completion`,
+        jobId,
+        completionRequestId: result.id,
+      },
+    });
+  }
 
   return result;
 };
