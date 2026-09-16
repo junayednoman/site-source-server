@@ -18,6 +18,20 @@ const create = handleAsyncRequest(async (req: TRequest, res: Response) => {
   });
 });
 
+const registerPushToken = handleAsyncRequest(
+  async (req: TRequest, res: Response) => {
+    const result = await notificationServices.registerPushToken(
+      req.user?.id as string,
+      req.body
+    );
+
+    sendResponse(res, {
+      message: "Push token registered successfully!",
+      data: result,
+    });
+  }
+);
+
 const getAll = handleAsyncRequest(async (req: TRequest, res: Response) => {
   const options = pick(req.query, ["page", "limit", "sortBy", "orderBy"]);
   const result = await notificationServices.getAll(
@@ -69,6 +83,7 @@ const deleteAll = handleAsyncRequest(async (req: TRequest, res: Response) => {
 
 export const notificationController = {
   create,
+  registerPushToken,
   getAll,
   markAllAsRead,
   deleteSingle,

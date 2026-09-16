@@ -33,6 +33,7 @@ model Auth {
   givenReviews      Review[]         @relation("ReviewGiver")
   reviews           Review[]         @relation("ReviewReceiver")
   notifications     Notification[]
+  pushTokens        PushToken[]
   bookmarkedJobs    JobBookmark[]
   bookmarkedWorkers WorkerBookmark[] @relation("BookmarkedWorker")
   workerBookmarks   WorkerBookmark[] @relation("WorkerBookmarker")
@@ -271,8 +272,24 @@ model Notification {
   auth    Auth     @relation(fields: [authId], references: [id])
   title   String
   message String
+  data    Json?
   seen    Boolean  @default(false)
   sentAt  DateTime @default(now())
+}
+
+model PushToken {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  authId         String   @db.ObjectId
+  auth           Auth     @relation(fields: [authId], references: [id])
+  token          String
+  provider       String   @default("expo")
+  platform       String
+  installationId String
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([authId, installationId])
 }
 
 enum JobCompletionStatus {
