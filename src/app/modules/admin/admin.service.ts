@@ -30,7 +30,14 @@ const getDashboard = async () => {
   const yearStart = new Date(currentYear, 0, 1);
   const nextYearStart = new Date(currentYear + 1, 0, 1);
 
-  const [totalEmployers, totalWorkers, totalJobs, users] = await Promise.all([
+  const [
+    totalEmployers,
+    totalWorkers,
+    totalJobs,
+    users,
+    jobsByStatusCount,
+    jobs,
+  ] = await Promise.all([
     prisma.auth.count({
       where: {
         role: UserRole.EMPLOYER,
@@ -56,6 +63,23 @@ const getDashboard = async () => {
         createdAt: true,
       },
     }),
+    prisma.job.groupBy({
+      by: ["status"],
+      _count: {
+        _all: true,
+      },
+    }),
+    prisma.job.findMany({
+      where: {
+        createdAt: {
+          gte: yearStart,
+          lt: nextYearStart,
+        },
+      },
+      select: {
+        createdAt: true,
+      },
+    }),
   ]);
 
   const monthlyUserCount = Array(12).fill(0) as number[];
@@ -69,18 +93,54 @@ const getDashboard = async () => {
     users: monthlyUserCount[index],
   }));
 
+  const statusCountMap = new Map(
+    jobsByStatusCount.map(item => [item.status, item._count._all])
+  );
+  const jobsByStatus = Object.values(JobStatus).map(status => {
+    const count = statusCountMap.get(status) || 0;
+
+    return {
+      status,
+      count,
+      percentage: totalJobs
+        ? Number(((count / totalJobs) * 100).toFixed(2))
+        : 0,
+    };
+  });
+
+  const monthlyJobCount = Array(12).fill(0) as number[];
+  jobs.forEach(job => {
+    const monthIndex = job.createdAt.getMonth();
+    monthlyJobCount[monthIndex] = (monthlyJobCount[monthIndex] || 0) + 1;
+  });
+
+  const monthlyJobs = MONTHS.map((month, index) => ({
+    month,
+    jobs: monthlyJobCount[index],
+  }));
+
   return {
     totalEmployers,
     totalWorkers,
     totalJobs,
     userGrowth,
+    jobsByStatus,
+    monthlyJobs,
   };
 };
 
 const getProfile = async (authId: string) => {
-  const profile = await prisma.profile.findUniqueOrThrow({
+  const profile = await prisma.auth.findUniqueOrThrow({
     where: {
-      authId,
+      id: authId,
+    },
+    select: {
+      id: true,
+      email: true,
+      role: true,
+      status: true,
+      createdAt: true,
+      profile: true,
     },
   });
 

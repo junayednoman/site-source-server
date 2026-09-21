@@ -441,6 +441,15 @@ const getAvailableMapJobsForWorker = async (
       id: true,
       title: true,
       location: true,
+      employerAuth: {
+        select: {
+          profile: {
+            select: {
+              name: true,
+            },
+          },
+        },
+      },
     },
     orderBy: {
       createdAt: "desc",
@@ -466,6 +475,12 @@ const getAvailableMapJobsForWorker = async (
 
   const { page, take, skip } = calculatePagination(options);
   const paginatedJobs = filteredJobs.slice(skip, skip + take);
+  const formattedJobs = paginatedJobs.map(job => ({
+    id: job.id,
+    title: job.title,
+    location: job.location,
+    employerName: job.employerAuth.profile?.name,
+  }));
 
   const meta = {
     page,
@@ -473,7 +488,7 @@ const getAvailableMapJobsForWorker = async (
     total: filteredJobs.length,
   };
 
-  return { meta, jobs: paginatedJobs };
+  return { meta, jobs: formattedJobs };
 };
 
 const getActiveJobsForWorker = async (
