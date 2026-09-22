@@ -1,27 +1,64 @@
 services:
-  postgres:
-    image: postgres:16
-    container_name: site source-postgres
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: site source
+  mongodb:
+    image: mongo:7
+    container_name: karan-mongodb
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
     ports:
-      - "5432:5432"
+      - "27017:27017"
     networks:
-      - site source-network
+      - karan-network
     volumes:
-      - site source-postgres-volume:/var/lib/postgresql/data
+      - karan-mongodb-volume:/data/db
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
       interval: 5s
-      timeout: 3s
-      retries: 10
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  mongodb-init:
+    image: mongo:7
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - karan-network
+    entrypoint:
+      - mongosh
+      - --host
+      - mongodb:27017
+      - --quiet
+      - --eval
+      - >-
+        try { rs.status() } catch (error) {
+          rs.initiate({ _id: "rs0", members: [{ _id: 0, host: "mongodb:27017" }] })
+        }
+    restart: "no"
+
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: karan-server
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      PORT: ${PORT:-5000}
+      DATABASE_URL: mongodb://mongodb:27017/karan?replicaSet=rs0&directConnection=true
+    ports:
+      - "${PORT:-5000}:${PORT:-5000}"
+    depends_on:
+      mongodb-init:
+        condition: service_completed_successfully
+    networks:
+      - karan-network
+    restart: unless-stopped
 
 networks:
-  site source-network:
-    name: site source-network
+  karan-network:
+    name: karan-network
     driver: bridge
 
 volumes:
-  site-source-postgres-volume:
+  karan-mongodb-volume:
