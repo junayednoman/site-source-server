@@ -16,6 +16,7 @@ app.use(
       "http://localhost:8081",
       "http://10.10.28.21:5007",
       "http://72.244.153.29:5007",
+      "https://site-source-test.vercel.app",
     ],
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
