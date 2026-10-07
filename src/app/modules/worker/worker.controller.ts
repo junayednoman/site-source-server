@@ -29,7 +29,10 @@ const getProfile = handleAsyncRequest(async (req: TRequest, res: Response) => {
 });
 
 const getDetails = handleAsyncRequest(async (req: TRequest, res: Response) => {
-  const result = await workerServices.getDetails(req.params.id as string);
+  const result = await workerServices.getDetails(
+    req.params.id as string,
+    req.user?.id as string
+  );
   sendResponse(res, {
     message: "Details fetched successfully!",
     data: result,

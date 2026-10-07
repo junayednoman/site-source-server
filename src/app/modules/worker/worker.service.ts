@@ -90,24 +90,38 @@ const getProfile = async (authId: string) => {
   return profile;
 };
 
-const getDetails = async (authId: string) => {
-  const details = await prisma.auth.findUniqueOrThrow({
-    where: {
-      id: authId,
-    },
-    select: {
-      id: true,
-      email: true,
-      role: true,
-      status: true,
-      createdAt: true,
-      updatedAt: true,
-      profile: true,
-      workerProfile: true,
-    },
-  });
+const getDetails = async (authId: string, currentAuthId: string) => {
+  const [details, bookmark] = await Promise.all([
+    prisma.auth.findUniqueOrThrow({
+      where: {
+        id: authId,
+      },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+        profile: true,
+        workerProfile: true,
+      },
+    }),
+    prisma.workerBookmark.findFirst({
+      where: {
+        authId: currentAuthId,
+        workerAuthId: authId,
+      },
+      select: {
+        id: true,
+      },
+    }),
+  ]);
 
-  return details;
+  return {
+    ...details,
+    isBookmarked: Boolean(bookmark),
+  };
 };
 
 const getAll = async (

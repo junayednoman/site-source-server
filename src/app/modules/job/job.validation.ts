@@ -42,6 +42,10 @@ export const createJobZod = z.object({
 
 export type TCreateJob = z.infer<typeof createJobZod>;
 
+export const updateJobZod = createJobZod.partial();
+
+export type TUpdateJob = z.infer<typeof updateJobZod>;
+
 export const updateApplicationStatusZod = z.object({
   status: z.enum([ApplicationStatus.ACCEPTED, ApplicationStatus.REJECTED]),
 });

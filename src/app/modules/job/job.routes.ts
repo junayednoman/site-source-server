@@ -11,6 +11,7 @@ import {
   updateJobOfferStatusZod,
   updateTimeSheetStatusZod,
   updateJobCompletionStatusZod,
+  updateJobZod,
 } from "./job.validation.js";
 
 const router = Router();
@@ -138,6 +139,15 @@ router.get(
   authorize({ optional: true }, UserRole.WORKER, UserRole.EMPLOYER),
   jobController.getSingle
 );
+
+router.patch(
+  "/:id",
+  authorize(UserRole.EMPLOYER),
+  validate(updateJobZod),
+  jobController.update
+);
+
+router.delete("/:id", authorize(UserRole.EMPLOYER), jobController.deleteJob);
 
 router.post(
   "/",

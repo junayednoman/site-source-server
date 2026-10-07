@@ -15,6 +15,29 @@ const create = handleAsyncRequest(async (req: TRequest, res: Response) => {
   });
 });
 
+const update = handleAsyncRequest(async (req: TRequest, res: Response) => {
+  const result = await jobServices.update(
+    req.user?.id as string,
+    req.params.id as string,
+    req.body
+  );
+  sendResponse(res, {
+    message: "Job updated successfully!",
+    data: result,
+  });
+});
+
+const deleteJob = handleAsyncRequest(async (req: TRequest, res: Response) => {
+  const result = await jobServices.deleteJob(
+    req.user?.id as string,
+    req.params.id as string
+  );
+  sendResponse(res, {
+    message: "Job deleted successfully!",
+    data: result,
+  });
+});
+
 const getMyJobs = handleAsyncRequest(async (req: TRequest, res: Response) => {
   const options = pick(req.query, ["page", "limit", "sortBy", "orderBy"]);
   const result = await jobServices.getMyJobs(
@@ -303,6 +326,8 @@ const updateJobCompletionStatus = handleAsyncRequest(
 
 export const jobController = {
   create,
+  update,
+  deleteJob,
   getMyJobs,
   getAllForWorker,
   getAvailableMapJobsForWorker,

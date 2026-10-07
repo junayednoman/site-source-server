@@ -17,6 +17,7 @@ import {
   TCreateJob,
   TCreateTimeSheet,
   TSendJobOffer,
+  TUpdateJob,
 } from "./job.validation.js";
 import {
   EMPTY_OBJECT_ID,
@@ -47,6 +48,97 @@ const create = async (employerAuthId: string, payload: TCreateJob) => {
   });
 
   return result;
+};
+
+const update = async (
+  employerAuthId: string,
+  jobId: string,
+  payload: TUpdateJob
+) => {
+  await prisma.job.findFirstOrThrow({
+    where: {
+      id: jobId,
+      employerAuthId,
+    },
+  });
+
+  return prisma.job.update({
+    where: {
+      id: jobId,
+    },
+    data: payload,
+  });
+};
+
+const deleteJob = async (employerAuthId: string, jobId: string) => {
+  await prisma.job.findFirstOrThrow({
+    where: {
+      id: jobId,
+      employerAuthId,
+    },
+  });
+
+  return prisma.$transaction(async transaction => {
+    const timeSheets = await transaction.timeSheet.findMany({
+      where: {
+        jobId,
+      },
+      select: {
+        id: true,
+      },
+    });
+    const timeSheetIds = timeSheets.map(timeSheet => timeSheet.id);
+
+    await transaction.timeSheetDayEntry.deleteMany({
+      where: {
+        timeSheetId: {
+          in: timeSheetIds,
+        },
+      },
+    });
+
+    await transaction.timeSheet.deleteMany({
+      where: {
+        jobId,
+      },
+    });
+
+    const conversations = await transaction.conversation.findMany({
+      where: {
+        jobId,
+      },
+      select: {
+        id: true,
+      },
+    });
+    const conversationIds = conversations.map(conversation => conversation.id);
+
+    await transaction.message.deleteMany({
+      where: {
+        conversationId: {
+          in: conversationIds,
+        },
+      },
+    });
+
+    await transaction.conversation.deleteMany({
+      where: {
+        jobId,
+      },
+    });
+
+    await transaction.jobApplication.deleteMany({ where: { jobId } });
+    await transaction.jobOffer.deleteMany({ where: { jobId } });
+    await transaction.review.deleteMany({ where: { jobId } });
+    await transaction.jobBookmark.deleteMany({ where: { jobId } });
+    await transaction.jobCompletion.deleteMany({ where: { jobId } });
+
+    return transaction.job.delete({
+      where: {
+        id: jobId,
+      },
+    });
+  });
 };
 
 const getMyJobs = async (
@@ -1562,6 +1654,8 @@ const updateJobCompletionStatus = async (
 
 export const jobServices = {
   create,
+  update,
+  deleteJob,
   getMyJobs,
   getAllForWorker,
   getAvailableMapJobsForWorker,
