@@ -18,6 +18,8 @@ router.post(
 
 router.get("/", authorize(), notificationController.getAll);
 
+router.get("/unseen-count", authorize(), notificationController.getUnseenCount);
+
 router.post(
   "/push-token",
   authorize(),

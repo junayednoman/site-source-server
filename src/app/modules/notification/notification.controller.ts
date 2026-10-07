@@ -45,6 +45,19 @@ const getAll = handleAsyncRequest(async (req: TRequest, res: Response) => {
   });
 });
 
+const getUnseenCount = handleAsyncRequest(
+  async (req: TRequest, res: Response) => {
+    const result = await notificationServices.getUnseenCount(
+      req.user?.id as string
+    );
+
+    sendResponse(res, {
+      message: "Unseen notification count fetched successfully!",
+      data: result,
+    });
+  }
+);
+
 const markAllAsRead = handleAsyncRequest(
   async (req: TRequest, res: Response) => {
     const result = await notificationServices.markAllAsRead(
@@ -85,6 +98,7 @@ export const notificationController = {
   create,
   registerPushToken,
   getAll,
+  getUnseenCount,
   markAllAsRead,
   deleteSingle,
   deleteAll,

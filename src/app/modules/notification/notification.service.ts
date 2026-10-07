@@ -168,6 +168,17 @@ const getAll = async (authId: string, options: TPaginationOptions) => {
   return { meta, notifications };
 };
 
+const getUnseenCount = async (authId: string) => {
+  const unseenCount = await prisma.notification.count({
+    where: {
+      authId,
+      seen: false,
+    },
+  });
+
+  return { unseenCount };
+};
+
 const markAllAsRead = async (authId: string) => {
   const result = await prisma.notification.updateMany({
     where: {
@@ -208,6 +219,7 @@ export const notificationServices = {
   registerPushToken,
   sendPushNotification,
   getAll,
+  getUnseenCount,
   markAllAsRead,
   deleteSingle,
   deleteAll,
